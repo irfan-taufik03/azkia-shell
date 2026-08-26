@@ -24,11 +24,19 @@
 
 ## 🛠️ Quick Installation
 
-Run the installation script directly:
+### Option 1: Git Clone (Recommended)
 
 ```bash
+git clone https://github.com/irfan-taufik03/azkia-shell.git
+cd azkia-shell
 chmod +x install.sh
 ./install.sh
+```
+
+### Option 2: One-Line Installer
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/irfan-taufik03/azkia-shell/main/install.sh)"
 ```
 
 ### What the Installer Does:

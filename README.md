@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://buymeacoffee.com/irfan.taufik03"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee"></a>
+  <a href="https://buymeacoffee.com/irfan.taufik03" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License: MIT"></a>
 </p>
 
@@ -96,8 +96,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/irfan-taufik03/azkia-she
 
 ## 🙏 Credits & Acknowledgements
 
-- **[Drew (Just A Guy Linux)](https://justaguy.dev/drew/bspwm-setup)** - Base BSPWM environment structure and initial setup code.
-- **[DMS (DankMaterialShell)](https://github.com/AvengeMedia/danklinux)** - UI/UX inspiration and Quickshell desktop environment concept.
+- <b><a href="https://justaguy.dev/drew/bspwm-setup" target="_blank" rel="noopener noreferrer">Drew (Just A Guy Linux)</a></b> - Base BSPWM environment structure and initial setup code.
+- <b><a href="https://github.com/AvengeMedia/danklinux" target="_blank" rel="noopener noreferrer">DMS (DankMaterialShell)</a></b> - UI/UX inspiration and Quickshell desktop environment concept.
 
 ---
 
@@ -105,7 +105,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/irfan-taufik03/azkia-she
 
 If you enjoy using **Azkia Shell** and would like to support the development, feel free to buy me a coffee!
 
-<a href="https://buymeacoffee.com/irfan.taufik03"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee"></a>
+<a href="https://buymeacoffee.com/irfan.taufik03" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee"></a>
 
 ---
 

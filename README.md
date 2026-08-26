@@ -19,6 +19,7 @@
 
 - **Multi-Distro Support**: Works natively on **Debian / Ubuntu / Butterbian**, **Arch Linux / Manjaro / EndeavourOS**, and **Fedora / Nobara**.
 - **Azkia Shell**: Modern bar, control center, launchers, system monitor, note manager, lockscreen, and popups.
+- **Instant UI Settings**: Built-in graphical settings panel for real-time, instant customization of shell appearance, wallpapers, picom effects, and autolock timeouts.
 - **Terminal Emulator**: Pre-configured with **WezTerm** (`Super + Return`).
 - **Pre-configured GTK & Cursor Theme**: Automatically deploys and applies **Nordic-darker** GTK theme and **Sweet-cursors** cursor theme.
 - **Window Management**: Window tiled/floating rules, mouse focus, keybindings via `sxhkd`.

@@ -8,6 +8,11 @@
   A complete, modern, multi-distro desktop setup featuring <b>BSPWM</b> and <b>Azkia Shell</b> (built with Quickshell & Qt6/QML).
 </p>
 
+<p align="center">
+  <a href="https://buymeacoffee.com/irfan.taufik03"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License: MIT"></a>
+</p>
+
 ---
 
 ## 🚀 Features
@@ -93,3 +98,18 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/irfan-taufik03/azkia-she
 
 - **[Drew (Just A Guy Linux)](https://justaguy.dev/drew/bspwm-setup)** - Base BSPWM environment structure and initial setup code.
 - **[DMS (DankMaterialShell)](https://github.com/AvengeMedia/danklinux)** - UI/UX inspiration and Quickshell desktop environment concept.
+
+---
+
+## ☕ Support
+
+If you enjoy using **Azkia Shell** and would like to support the development, feel free to buy me a coffee!
+
+<a href="https://buymeacoffee.com/irfan.taufik03"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee"></a>
+
+---
+
+## 📄 License
+
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
+

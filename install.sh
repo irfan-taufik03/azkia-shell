@@ -89,12 +89,12 @@ install_debian() {
 
     # Check Quickshell availability in APT
     if ! apt-cache show quickshell &>/dev/null; then
-        log_info "Adding Butterbian / DankLinux repository for Quickshell..."
-        $SUDO_CMD mkdir -p /etc/apt/keyrings /usr/share/keyrings
+        log_info "Adding DankLinux repository for Quickshell..."
+        $SUDO_CMD mkdir -p /etc/apt/keyrings
 
-        if ! [ -f /etc/apt/sources.list.d/butterrepo.list ]; then
-            curl -fsSL https://apt.justaguy.dev/butterrepo.gpg | $SUDO_CMD gpg --dearmor -o /usr/share/keyrings/butterrepo.gpg 2>/dev/null || true
-            echo "deb [arch=amd64 signed-by=/usr/share/keyrings/butterrepo.gpg] https://apt.justaguy.dev stable main" | $SUDO_CMD tee /etc/apt/sources.list.d/butterrepo.list >/dev/null
+        # Clean up obsolete butterrepo repository if it exists
+        if [ -f /etc/apt/sources.list.d/butterrepo.list ]; then
+            $SUDO_CMD rm -f /etc/apt/sources.list.d/butterrepo.list /usr/share/keyrings/butterrepo.gpg 2>/dev/null || true
         fi
 
         if ! [ -f /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list ]; then

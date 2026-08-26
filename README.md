@@ -91,5 +91,5 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/irfan-taufik03/azkia-she
 
 ## 🙏 Credits & Acknowledgements
 
-- **[Drew (Just A Guy Linux)](https://www.youtube.com/@JustAGuyLinux)** - Base BSPWM environment structure and initial setup code.
+- **[Drew (Just A Guy Linux)](https://justaguy.dev/drew/bspwm-setup)** - Base BSPWM environment structure and initial setup code.
 - **[DMS (DankMaterialShell)](https://github.com/AvengeMedia/danklinux)** - UI/UX inspiration and Quickshell desktop environment concept.

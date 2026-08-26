@@ -1,6 +1,12 @@
-# Azkia Shell & BSPWM Installer
+<p align="center">
+  <img src="azkia-shell/assets/azkia-shell-logo.svg" alt="Azkia Shell Logo" width="180">
+</p>
 
-A complete, modern, multi-distro desktop setup featuring **BSPWM** (Binary Space Partitioning Window Manager) and **Azkia Shell** (built with [Quickshell](https://quickshell.outfoxxed.me/) and Qt6/QML).
+<h1 align="center">Azkia Shell & BSPWM Installer</h1>
+
+<p align="center">
+  A complete, modern, multi-distro desktop setup featuring <b>BSPWM</b> and <b>Azkia Shell</b> (built with Quickshell & Qt6/QML).
+</p>
 
 ---
 
@@ -59,7 +65,6 @@ chmod +x install.sh
 - `Super + Space` : Open Launcher
 - `Super + X` : Open Power Menu
 - `Super + M` : Open Media Player Popup
-- `Super + B` : Open Control Center
 - `Super + L` : Lock Screen
 - `Super + Shift + Return` : File Manager (`thunar`)
 - `Super + C` : Close Focused Window

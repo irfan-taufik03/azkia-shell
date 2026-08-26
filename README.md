@@ -86,3 +86,10 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/irfan-taufik03/azkia-she
 1. Log out of your current session.
 2. Select **BSPWM** from your Display Manager (LightDM, GDM, SDDM).
 3. Or launch via console with `startx`.
+
+---
+
+## 🙏 Credits & Acknowledgements
+
+- **[Drew (Just A Guy Linux)](https://www.youtube.com/@JustAGuyLinux)** - Base BSPWM environment structure and initial setup code.
+- **[DMS (DankMonoShell)](https://github.com/AvengeMedia/danklinux)** - UI/UX inspiration and Quickshell desktop environment concept.

@@ -13,10 +13,6 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License: MIT"></a>
 </p>
 
-<p align="center">
-  <video src="assets/azkia-shell-demo.mp4" controls width="100%"></video>
-</p>
-
 ---
 
 ## 🚀 Features

@@ -1,0 +1,43 @@
+singleton Theme Theme.qml
+singleton Wm Wm.qml
+singleton Sys Sys.qml
+Bar Bar.qml
+BarModule BarModule.qml
+Tags Tags.qml
+LayoutIcon LayoutIcon.qml
+Title Title.qml
+Media Media.qml
+MediaPopup MediaPopup.qml
+Metrics Metrics.qml
+Volume Volume.qml
+Network Network.qml
+Tray Tray.qml
+Clock Clock.qml
+CalendarPopup CalendarPopup.qml
+Launcher Launcher.qml
+PowerButton PowerButton.qml
+Screenshot Screenshot.qml
+CapsLock CapsLock.qml
+Bell Bell.qml
+Popout Popout.qml
+Weather Weather.qml
+NotifyPopup NotifyPopup.qml
+NotificationToast NotificationToast.qml
+Cpu Cpu.qml
+Ram Ram.qml
+Battery Battery.qml
+BatteryPopup BatteryPopup.qml
+Launchpad Launchpad.qml
+Brightness Brightness.qml
+ControlCenter ControlCenter.qml
+ControlCenterPopup ControlCenterPopup.qml
+VolumePopup VolumePopup.qml
+BrightnessPopup BrightnessPopup.qml
+Clipboard Clipboard.qml
+ClipboardPopup ClipboardPopup.qml
+LauncherPopup LauncherPopup.qml
+PowerPopup PowerPopup.qml
+SystemMonitorPopup SystemMonitorPopup.qml
+SettingsWindow SettingsWindow.qml
+Lockscreen Lockscreen.qml
+NotePopup NotePopup.qml

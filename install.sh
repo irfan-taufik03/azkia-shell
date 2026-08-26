@@ -1,0 +1,393 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Azkia Shell & BSPWM Installer
+# Supported Distributions:
+#   - Debian / Butterbian / Ubuntu / Linux Mint / Pop!_OS (APT)
+#   - Arch Linux / Manjaro / EndeavourOS (Pacman + AUR)
+#   - Fedora / Nobara / RHEL (DNF)
+# ==============================================================================
+
+set -e
+
+# Colors for terminal output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Helper logging functions
+log_info() {
+    echo -e "${CYAN}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_banner() {
+    echo -e "${PURPLE}"
+    echo "  █████╗ ███████╗██╗  ██╗██╗ █████╗ ███████╗██╗  ██╗███████╗██╗     ██╗     "
+    echo " ██╔══██╗╚══███╔╝██║ ██╔╝██║██╔══██╗██╔════╝██║  ██║██╔════╝██║     ██║     "
+    echo " ███████║  ███╔╝ █████╔╝ ██║███████║███████╗███████║█████╗  ██║     ██║     "
+    echo " ██╔══██║ ███╔╝  ██╔═██╗ ██║██╔══██║╚════██║██╔══██║██╔══╝  ██║     ██║     "
+    echo " ██║  ██║███████╗██║  ██╗██║██║  ██║███████║██║  ██║███████╗███████╗███████╗"
+    echo " ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝"
+    echo -e "                   BSPWM & Quickshell Environment Installer${NC}\n"
+}
+
+check_root_or_sudo() {
+    if [ "$EUID" -eq 0 ]; then
+        SUDO_CMD=""
+    else
+        if command -v sudo &>/dev/null; then
+            SUDO_CMD="sudo"
+        else
+            log_error "Privilege escalation tool (sudo) is required but not installed."
+            exit 1
+        fi
+    fi
+}
+
+detect_distro() {
+    DISTRO_TYPE="unknown"
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        DISTRO_NAME=$PRETTY_NAME
+        DISTRO_ID=$ID
+    else
+        DISTRO_NAME="Unknown Linux"
+        DISTRO_ID="unknown"
+    fi
+
+    log_info "Detected OS: $DISTRO_NAME"
+
+    if command -v apt-get &>/dev/null; then
+        DISTRO_TYPE="debian"
+    elif command -v pacman &>/dev/null; then
+        DISTRO_TYPE="arch"
+    elif command -v dnf &>/dev/null; then
+        DISTRO_TYPE="fedora"
+    else
+        log_error "Unsupported package manager. Only APT (Debian/Ubuntu), Pacman (Arch), and DNF (Fedora) are supported."
+        exit 1
+    fi
+}
+
+install_debian() {
+    log_info "Setting up repositories and installing packages for Debian/Ubuntu..."
+
+    # Check Quickshell availability in APT
+    if ! apt-cache show quickshell &>/dev/null; then
+        log_info "Adding Butterbian / DankLinux repository for Quickshell..."
+        $SUDO_CMD mkdir -p /etc/apt/keyrings /usr/share/keyrings
+
+        if ! [ -f /etc/apt/sources.list.d/butterrepo.list ]; then
+            curl -fsSL https://apt.justaguy.dev/butterrepo.gpg | $SUDO_CMD gpg --dearmor -o /usr/share/keyrings/butterrepo.gpg 2>/dev/null || true
+            echo "deb [arch=amd64 signed-by=/usr/share/keyrings/butterrepo.gpg] https://apt.justaguy.dev stable main" | $SUDO_CMD tee /etc/apt/sources.list.d/butterrepo.list >/dev/null
+        fi
+
+        if ! [ -f /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list ]; then
+            curl -fsSL "https://download.opensuse.org/repositories/home:/AvengeMedia:/danklinux/Debian_13/Release.key" | $SUDO_CMD gpg --dearmor -o /etc/apt/keyrings/home-AvengeMedia-danklinux.gpg 2>/dev/null || true
+            echo "deb [signed-by=/etc/apt/keyrings/home-AvengeMedia-danklinux.gpg arch=amd64] https://download.opensuse.org/repositories/home:/AvengeMedia:/danklinux/Debian_13/ /" | $SUDO_CMD tee /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list >/dev/null
+        fi
+    fi
+
+    PACKAGES=(
+        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager wezterm
+        quickshell xclip xdotool x11-utils x11-xserver-utils pamixer playerctl wireplumber pipewire-audio
+        brightnessctl upower power-profiles-daemon bluez bluez-tools bluez-obexd libspa-0.2-bluetooth network-manager
+        python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 libx11-6 libxss1
+        libqt6qml6 libqt6quick6 libqt6quickcontrols2-6 libqt6svg6 qml6-module-qtquick-controls
+        qml6-module-qtquick-layouts qml6-module-qtquick-templates qml6-module-qtquick-shapes
+        qml6-module-qtquick-window qml6-module-qtsvg qt6-gtk-platformtheme qt6-style-kvantum qt6ct
+        fonts-font-awesome fonts-noto-color-emoji fonts-inter fonts-roboto
+    )
+
+    $SUDO_CMD apt update -y
+    $SUDO_CMD apt install -y "${PACKAGES[@]}"
+}
+
+install_arch() {
+    log_info "Installing packages for Arch Linux..."
+
+    PACKAGES=(
+        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxsession xfce4-power-manager wezterm
+        xclip xdotool xorg-xprop xorg-xset xorg-xrandr xorg-xsetroot pamixer playerctl wireplumber pipewire-pulse
+        brightnessctl upower power-profiles-daemon bluez bluez-utils networkmanager
+        python python-gobject gtk3 libx11 libxss
+        qt6-declarative qt6-svg qt6-5compat kvantum qt6ct
+        ttf-font-awesome noto-fonts-emoji inter-font ttf-roboto
+    )
+
+    $SUDO_CMD pacman -S --needed --noconfirm "${PACKAGES[@]}"
+
+    # Install Quickshell from AUR if not present
+    if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
+        log_info "Installing Quickshell from AUR..."
+        if command -v yay &>/dev/null; then
+            yay -S --needed --noconfirm quickshell-git
+        elif command -v paru &>/dev/null; then
+            paru -S --needed --noconfirm quickshell-git
+        else
+            log_info "No AUR helper found. Building quickshell-git manually..."
+            BUILD_DIR=$(mktemp -d)
+            git clone https://aur.archlinux.org/quickshell-git.git "$BUILD_DIR"
+            (cd "$BUILD_DIR" && makepkg -si --noconfirm)
+            rm -rf "$BUILD_DIR"
+        fi
+    fi
+}
+
+install_fedora() {
+    log_info "Installing packages for Fedora..."
+
+    # Enable COPR repo for quickshell if available
+    $SUDO_CMD dnf copr enable -y avengemedia/danklinux 2>/dev/null || true
+
+    PACKAGES=(
+        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager wezterm
+        xclip xdotool xprop xset xrandr xsetroot pamixer playerctl wireplumber pipewire pipewire-plugin-spa-bluetooth
+        brightnessctl upower power-profiles-daemon bluez bluez-tools NetworkManager
+        python3 python3-gobject gtk3 libX11 libXScrnSaver
+        qt6-qtdeclarative qt6-qtsvg qt6-qt5compat kvantum-qt6 qt6ct
+        fontawesome-fonts google-noto-emoji-fonts google-roboto-fonts
+    )
+
+    $SUDO_CMD dnf install -y "${PACKAGES[@]}"
+
+    if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
+        $SUDO_CMD dnf install -y quickshell 2>/dev/null || log_warn "Quickshell package not found in Fedora repos. Please install Quickshell manually."
+    fi
+}
+
+install_dependencies() {
+    case "$DISTRO_TYPE" in
+        debian)
+            install_debian
+            ;;
+        arch)
+            install_arch
+            ;;
+        fedora)
+            install_fedora
+            ;;
+        *)
+            log_error "Unsupported Linux distribution."
+            exit 1
+            ;;
+    esac
+    log_success "All system dependencies installed successfully!"
+}
+
+deploy_config() {
+    TARGET_DIR="$HOME/.config/bspwm"
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    log_info "Deploying BSPWM and Azkia Shell configuration..."
+
+    # Backup existing configuration if present
+    if [ -d "$TARGET_DIR" ]; then
+        BACKUP_DIR="${TARGET_DIR}.bak.$(date +%Y%m%d_%H%M%S)"
+        log_warn "Existing config found at $TARGET_DIR. Creating backup at $BACKUP_DIR..."
+        mv "$TARGET_DIR" "$BACKUP_DIR"
+    fi
+
+    # Create target directory
+    mkdir -p "$TARGET_DIR"
+
+    # Copy files from repository to ~/.config/bspwm
+    cp -r "$SCRIPT_DIR/azkia-shell" "$TARGET_DIR/"
+    cp -r "$SCRIPT_DIR/scripts" "$TARGET_DIR/"
+    cp -r "$SCRIPT_DIR/wallpapers" "$TARGET_DIR/"
+    cp "$SCRIPT_DIR/bspwmrc" "$TARGET_DIR/"
+    cp "$SCRIPT_DIR/bspwmrc.default" "$TARGET_DIR/"
+    cp "$SCRIPT_DIR/sxhkdrc" "$TARGET_DIR/"
+    cp "$SCRIPT_DIR/sxhkdrc.default" "$TARGET_DIR/"
+    cp "$SCRIPT_DIR/picom.conf" "$TARGET_DIR/"
+    [ -d "$SCRIPT_DIR/themes" ] && cp -r "$SCRIPT_DIR/themes" "$TARGET_DIR/"
+    [ -d "$SCRIPT_DIR/icons" ] && cp -r "$SCRIPT_DIR/icons" "$TARGET_DIR/"
+
+    # Replace hardcoded home paths in appearance.json with current user's $HOME
+    APPEARANCE_FILE="$TARGET_DIR/azkia-shell/appearance.json"
+    if [ -f "$APPEARANCE_FILE" ]; then
+        log_info "Configuring $APPEARANCE_FILE for user $USER..."
+        sed -i "s|/home/[^/]*|$HOME|g" "$APPEARANCE_FILE"
+    fi
+
+    # Set executable permissions on scripts and config entry points
+    log_info "Setting executable permissions..."
+    chmod +x "$TARGET_DIR/bspwmrc"
+    chmod +x "$TARGET_DIR/bspwmrc.default"
+    chmod +x "$TARGET_DIR/scripts/"*.sh 2>/dev/null || true
+    chmod +x "$TARGET_DIR/azkia-shell/scripts/"*.py 2>/dev/null || true
+    chmod +x "$TARGET_DIR/azkia-shell/scripts/"*.sh 2>/dev/null || true
+
+    log_success "Configuration deployed to $TARGET_DIR successfully!"
+}
+
+setup_gtk_theme() {
+    log_info "Deploying and applying Nordic-darker GTK theme and Sweet-cursors cursor..."
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    # Create target theme & icon directories
+    mkdir -p "$HOME/.themes" "$HOME/.icons" "$HOME/.local/share/themes" "$HOME/.local/share/icons"
+
+    # Copy GTK Theme
+    if [ -d "$SCRIPT_DIR/themes/Nordic-darker" ]; then
+        cp -r "$SCRIPT_DIR/themes/Nordic-darker" "$HOME/.themes/"
+        cp -r "$SCRIPT_DIR/themes/Nordic-darker" "$HOME/.local/share/themes/"
+        log_success "Copied Nordic-darker theme to ~/.themes/ and ~/.local/share/themes/"
+    fi
+
+    # Copy Cursor Theme
+    if [ -d "$SCRIPT_DIR/icons/Sweet-cursors" ]; then
+        cp -r "$SCRIPT_DIR/icons/Sweet-cursors" "$HOME/.icons/"
+        cp -r "$SCRIPT_DIR/icons/Sweet-cursors" "$HOME/.local/share/icons/"
+        log_success "Copied Sweet-cursors to ~/.icons/ and ~/.local/share/icons/"
+    fi
+
+    # Apply via gsettings (if available)
+    if command -v gsettings &>/dev/null; then
+        gsettings set org.gnome.desktop.interface gtk-theme "Nordic-darker" 2>/dev/null || true
+        gsettings set org.gnome.desktop.interface icon-theme "Nordic-darker" 2>/dev/null || true
+        gsettings set org.gnome.desktop.interface cursor-theme "Sweet-cursors" 2>/dev/null || true
+        gsettings set org.gnome.desktop.interface color-scheme "prefer-dark" 2>/dev/null || true
+    fi
+
+    # Write GTK 3 settings.ini
+    mkdir -p "$HOME/.config/gtk-3.0"
+    cat << 'EOF' > "$HOME/.config/gtk-3.0/settings.ini"
+[Settings]
+gtk-theme-name=Nordic-darker
+gtk-icon-theme-name=Nordic-darker
+gtk-cursor-theme-name=Sweet-cursors
+gtk-cursor-theme-size=24
+gtk-application-prefer-dark-theme=1
+EOF
+
+    # Write GTK 4 settings.ini
+    mkdir -p "$HOME/.config/gtk-4.0"
+    cat << 'EOF' > "$HOME/.config/gtk-4.0/settings.ini"
+[Settings]
+gtk-theme-name=Nordic-darker
+gtk-icon-theme-name=Nordic-darker
+gtk-cursor-theme-name=Sweet-cursors
+gtk-cursor-theme-size=24
+gtk-application-prefer-dark-theme=1
+EOF
+
+    # Write Default X11 cursor index.theme
+    mkdir -p "$HOME/.icons/default"
+    cat << 'EOF' > "$HOME/.icons/default/index.theme"
+[Icon Theme]
+Name=Default
+Comment=Default Cursor Theme
+Inherits=Sweet-cursors
+EOF
+
+    # Apply cursor immediately via xsetroot if running in X11
+    if command -v xsetroot &>/dev/null && [ -n "$DISPLAY" ]; then
+        xsetroot -cursor_name left_ptr 2>/dev/null || true
+    fi
+
+    log_success "Applied Nordic-darker GTK theme and Sweet-cursors cursor successfully!"
+}
+
+setup_xsessions() {
+    log_info "Setting up Xsession desktop entry for BSPWM..."
+    DESKTOP_ENTRY="/usr/share/xsessions/bspwm.desktop"
+
+    if [ ! -f "$DESKTOP_ENTRY" ]; then
+        log_info "Creating $DESKTOP_ENTRY..."
+        $SUDO_CMD bash -c "cat << 'EOF' > $DESKTOP_ENTRY
+[Desktop Entry]
+Name=BSPWM
+Comment=Binary Space Partitioning Window Manager
+Exec=bspwm
+Type=Application
+DesktopNames=bspwm
+EOF"
+        log_success "Created $DESKTOP_ENTRY"
+    fi
+
+    # Also create ~/.xinitrc if user doesn't have one
+    XINITRC="$HOME/.xinitrc"
+    if [ ! -f "$XINITRC" ]; then
+        log_info "Creating default $XINITRC..."
+        echo "sxhkd &" > "$XINITRC"
+        echo "exec bspwm" >> "$XINITRC"
+        chmod +x "$XINITRC"
+    fi
+}
+
+enable_services() {
+    log_info "Enabling and starting system services (Bluetooth & NetworkManager)..."
+    $SUDO_CMD systemctl enable --now bluetooth 2>/dev/null || true
+    $SUDO_CMD systemctl enable --now NetworkManager 2>/dev/null || true
+    $SUDO_CMD systemctl enable --now power-profiles-daemon 2>/dev/null || true
+}
+
+verify_installation() {
+    echo -e "\n${PURPLE}====================================================${NC}"
+    log_info "Verifying installed components..."
+
+    ERRORS=0
+    for cmd in bspwm sxhkd picom feh python3 pamixer brightnessctl playerctl bluetoothctl nmcli wezterm; do
+        if command -v "$cmd" &>/dev/null; then
+            echo -e "  [${GREEN}OK${NC}] Command '$cmd' is available."
+        else
+            echo -e "  [${RED}MISSING${NC}] Command '$cmd' was not found!"
+            ERRORS=$((ERRORS + 1))
+        fi
+    done
+
+    # Verify Quickshell binary (binary can be 'quickshell' or 'qs')
+    if command -v quickshell &>/dev/null || command -v qs &>/dev/null; then
+        echo -e "  [${GREEN}OK${NC}] Quickshell engine is available."
+    else
+        echo -e "  [${RED}MISSING${NC}] Quickshell binary (quickshell/qs) was not found!"
+        ERRORS=$((ERRORS + 1))
+    fi
+
+    # Check Python GTK / X11 bindings
+    if python3 -c "import gi; gi.require_version('Gtk', '3.0'); from gi.repository import Gtk; import ctypes; ctypes.cdll.LoadLibrary('libX11.so.6')" &>/dev/null; then
+        echo -e "  [${GREEN}OK${NC}] Python GTK3 & libX11 bindings verified."
+    else
+        echo -e "  [${YELLOW}WARN${NC}] Python GTK3 or libX11 bindings check failed."
+    fi
+
+    if [ "$ERRORS" -eq 0 ]; then
+        echo -e "\n${GREEN}✔ Azkia Shell & BSPWM Installation Completed Successfully!${NC}"
+        echo -e "To start your new BSPWM environment:"
+        echo -e "  1. Log out of your current session."
+        echo -e "  2. Select 'BSPWM' from your Display Manager (LightDM/GDM/SDDM)."
+        echo -e "  3. Or run 'startx' from a TTY.\n"
+    else
+        echo -e "\n${YELLOW}Installation completed with $ERRORS warning(s). Please review missing components above.${NC}\n"
+    fi
+}
+
+main() {
+    print_banner
+    check_root_or_sudo
+    detect_distro
+    install_dependencies
+    deploy_config
+    setup_gtk_theme
+    setup_xsessions
+    enable_services
+    verify_installation
+}
+
+main "$@"

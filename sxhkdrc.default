@@ -1,0 +1,117 @@
+super + shift + r
+	bspc wm -r notify-send 'bspwm' 'Restarted'
+
+super + space
+	qs -p ~/.config/bspwm/azkia-shell ipc call launcher toggle
+
+super + x
+	qs -p ~/.config/bspwm/azkia-shell ipc call power toggle
+
+super + m
+	qs -p ~/.config/bspwm/azkia-shell ipc call media toggle
+
+super + l
+	qs -p ~/.config/bspwm/azkia-shell ipc call lockscreen lock
+
+super + Escape
+	pkill -USR1 -x sxhkd notify-send 'sxhkd' 'Reloaded config'
+
+super + i
+	bspc node -R 90
+
+super + alt + i
+	bspc node -R -90
+
+super + g
+    bspc config window_gap 50
+
+super + alt + g
+    bspc config window_gap 8
+
+# Mirror display (duplicate)
+super + alt + d
+    xrandr --output HDMI-1 --same-as eDP-1 --auto
+
+# Extend display (right side)
+super + alt + e
+    xrandr --output HDMI-1 --auto --right-of eDP-1
+
+super + alt + o
+    xrandr --output HDMI-1 --off
+
+super + c
+	bspc node -c
+
+super + alt + c
+	bspc query -N -n .window | xargs -r bspc node -k
+
+super + v
+	bspc node -t "~"{floating,tiled}
+
+super + f
+	bspc node -t "~"fullscreen
+
+super + Tab
+	bspc node -f last
+
+alt + Tab
+   bspc desktop -f next.local
+
+ctrl + Tab
+  bspc desktop -f prev.local
+
+super + { Left, Down, Up, Right}
+	bspc node -f {west,south,north,east}
+
+super + shift + { Left, Down, Up, Right}
+	bspc node -s {west,south,north,east}
+
+super + {_,shift + }{1-9,0}
+	bspc {desktop --focus,node --to-desktop} 'focused:^{1-9,10}' --follow
+
+super + ctrl + {1-9,0}
+  bspc node --to-desktop 'focused:^{1-9,10}'
+
+super + ctrl + {Left,Down,Up,Right}
+	{bspc node -z left -40 0
+	bspc node -z right -40 0, \
+  		bspc node -z bottom 0 40
+	bspc node -z top 0 40, \
+  		bspc node -z bottom 0 -40
+	bspc node -z top 0 -40, \
+	bspc node -z left 40 0
+	bspc node -z right 40 0}
+
+XF86AudioRaiseVolume
+	qs -p ~/.config/bspwm/azkia-shell ipc call volume raise
+
+XF86AudioLowerVolume
+	qs -p ~/.config/bspwm/azkia-shell ipc call volume lower
+
+XF86AudioMute
+	qs -p ~/.config/bspwm/azkia-shell ipc call volume mute
+
+XF86MonBrightnessUp
+	qs -p ~/.config/bspwm/azkia-shell ipc call brightness raise
+
+XF86MonBrightnessDown
+	qs -p ~/.config/bspwm/azkia-shell ipc call brightness lower
+
+#Thunar file-Manager
+super + shift + Return
+	thunar
+
+super + s
+	flameshot gui
+	
+Print
+	flameshot screen
+
+super + shift + s
+	flameshot screen
+
+super + Return
+	wezterm
+
+super + h
+    ~/.config/bspwm/scripts/toggle-hidden.sh

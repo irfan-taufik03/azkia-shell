@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Temporary & Swap files
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Backup files
+*.bak
+*.bak.*

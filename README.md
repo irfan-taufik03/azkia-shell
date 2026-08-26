@@ -13,7 +13,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License: MIT"></a>
 </p>
 
-https://github.com/user-attachments/assets/3e9a2e1f-acf8-459c-aa8d-dbd56a794c3c
+https://github.com/user-attachments/assets/9999e326-6924-4018-a8cf-8e15c73fdf69
 
 ---
 

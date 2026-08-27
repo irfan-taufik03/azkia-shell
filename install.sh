@@ -134,27 +134,16 @@ install_debian() {
     fi
 
     if [ "$IS_UBUNTU_BASED" = true ]; then
-        # Remove Debian_13 OBS repository on Ubuntu/Mint as it causes Qt 6.8 dependency conflicts
-        if [ -f /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list ]; then
-            log_info "Removing incompatible Debian_13 repository on Ubuntu/Mint base..."
-            $SUDO_CMD rm -f /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list /etc/apt/keyrings/home-AvengeMedia-danklinux.gpg 2>/dev/null || true
-        fi
+        # Clean up any previous/conflicting DankLinux repository files to prevent Signed-By conflicts in APT
+        log_info "Cleaning up obsolete DankLinux repository definitions..."
+        $SUDO_CMD rm -f /etc/apt/sources.list.d/*danklinux*.list /etc/apt/keyrings/*danklinux*.gpg 2>/dev/null || true
 
-        # Try adding DankLinux PPA for Ubuntu/Mint
+        # Add DankLinux PPA for Ubuntu/Mint
         if ! apt-cache show quickshell &>/dev/null; then
-            log_info "Configuring DankLinux PPA for Ubuntu/Mint ($UBUNTU_CODENAME)..."
-            $SUDO_CMD mkdir -p /etc/apt/keyrings
-
+            log_info "Adding DankLinux PPA for Ubuntu/Mint..."
             if ! command -v add-apt-repository &>/dev/null; then
                 $SUDO_CMD apt update -y && $SUDO_CMD apt install -y software-properties-common 2>/dev/null || true
             fi
-
-            # Explicitly add PPA for $UBUNTU_CODENAME to fix Linux Mint codename mismatches
-            if ! [ -f /etc/apt/sources.list.d/avengemedia-danklinux.list ]; then
-                echo "deb [signed-by=/etc/apt/keyrings/avengemedia-danklinux.gpg] https://ppa.launchpadcontent.net/avengemedia/danklinux/ubuntu $UBUNTU_CODENAME main" | $SUDO_CMD tee /etc/apt/sources.list.d/avengemedia-danklinux.list >/dev/null 2>/dev/null || true
-                curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x8c4656689d0bdad9920d3f23497eaecb6f4e1f73" | $SUDO_CMD gpg --dearmor -o /etc/apt/keyrings/avengemedia-danklinux.gpg 2>/dev/null || true
-            fi
-
             if command -v add-apt-repository &>/dev/null; then
                 $SUDO_CMD add-apt-repository -y ppa:avengemedia/danklinux 2>/dev/null || true
             fi
@@ -275,17 +264,47 @@ install_fedora() {
 
     PACKAGES=(
         bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty xfce4-terminal xterm fastfetch git
-        xclip xdotool xprop xset xrandr xsetroot pamixer playerctl wireplumber pipewire pipewire-plugin-spa-bluetooth
+        xclip xdotool xprop xset xrandr xsetroot pamixer playerctl wireplumber pipewire
         brightnessctl upower power-profiles-daemon bluez bluez-tools NetworkManager
         python3 python3-gobject gtk3 libX11 libXScrnSaver
         qt6-qtdeclarative qt6-qtsvg qt6-qt5compat kvantum-qt6 qt6ct
         fontawesome-fonts google-noto-emoji-fonts google-roboto-fonts jetbrains-mono-fonts
     )
 
-    $SUDO_CMD dnf install -y "${PACKAGES[@]}"
+    VALID_PACKAGES=()
+    for pkg in "${PACKAGES[@]}"; do
+        if dnf info "$pkg" &>/dev/null; then
+            VALID_PACKAGES+=("$pkg")
+        else
+            log_warn "Package '$pkg' is not available in DNF repositories. Skipping..."
+        fi
+    done
+
+    if [ ${#VALID_PACKAGES[@]} -gt 0 ]; then
+        log_info "Installing core system packages..."
+        $SUDO_CMD dnf install -y --skip-unavailable "${VALID_PACKAGES[@]}"
+    fi
 
     if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
-        $SUDO_CMD dnf install -y quickshell 2>/dev/null || log_warn "Quickshell package not found in Fedora repos. Please install Quickshell manually."
+        log_info "Attempting to install Quickshell via DNF..."
+        $SUDO_CMD dnf install -y quickshell 2>/dev/null || log_warn "Quickshell package not found in Fedora repos."
+    fi
+
+    if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
+        log_info "Quickshell not found in Fedora repos. Compiling Quickshell from source..."
+        $SUDO_CMD dnf install -y cmake ninja-build gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtsvg-devel qt6-qtwayland-devel wayland-devel wayland-protocols-devel pipewire-devel dbus-devel libxkbcommon-devel 2>/dev/null || true
+
+        REAL_USER="${SUDO_USER:-$USER}"
+        BUILD_DIR=$(mktemp -d)
+        chmod 777 "$BUILD_DIR"
+        if git clone https://github.com/quickshell-mirror/quickshell.git "$BUILD_DIR"; then
+            chown -R "$REAL_USER" "$BUILD_DIR" 2>/dev/null || true
+            if (cd "$BUILD_DIR" && cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release && cmake --build build); then
+                $SUDO_CMD cmake --install "$BUILD_DIR/build"
+                log_success "Quickshell built and installed successfully from source on Fedora!"
+            fi
+        fi
+        rm -rf "$BUILD_DIR" 2>/dev/null || true
     fi
 }
 

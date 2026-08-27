@@ -85,29 +85,56 @@ detect_distro() {
 }
 
 install_debian() {
-    log_info "Setting up repositories and installing packages for Debian/Ubuntu..."
+    log_info "Setting up repositories and installing packages for Debian/Ubuntu/Linux Mint..."
 
-    # Check Quickshell availability in APT
-    if ! apt-cache show quickshell &>/dev/null; then
-        log_info "Adding DankLinux repository for Quickshell..."
-        $SUDO_CMD mkdir -p /etc/apt/keyrings
+    # Detect distro specifics
+    IS_UBUNTU_BASED=false
+    if [ -f /etc/os-release ]; then
+        if grep -qi -E 'ubuntu|mint|pop' /etc/os-release; then
+            IS_UBUNTU_BASED=true
+        fi
+    fi
 
-        # Clean up obsolete butterrepo repository if it exists
-        if [ -f /etc/apt/sources.list.d/butterrepo.list ]; then
-            $SUDO_CMD rm -f /etc/apt/sources.list.d/butterrepo.list /usr/share/keyrings/butterrepo.gpg 2>/dev/null || true
+    # Clean up obsolete butterrepo repository if it exists
+    if [ -f /etc/apt/sources.list.d/butterrepo.list ]; then
+        $SUDO_CMD rm -f /etc/apt/sources.list.d/butterrepo.list /usr/share/keyrings/butterrepo.gpg 2>/dev/null || true
+    fi
+
+    if [ "$IS_UBUNTU_BASED" = true ]; then
+        # Remove Debian_13 OBS repository on Ubuntu/Mint as it causes Qt 6.8 dependency conflicts
+        if [ -f /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list ]; then
+            log_info "Removing incompatible Debian_13 repository on Ubuntu/Mint base..."
+            $SUDO_CMD rm -f /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list /etc/apt/keyrings/home-AvengeMedia-danklinux.gpg 2>/dev/null || true
         fi
 
-        if ! [ -f /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list ]; then
-            curl -fsSL "https://download.opensuse.org/repositories/home:/AvengeMedia:/danklinux/Debian_13/Release.key" | $SUDO_CMD gpg --dearmor -o /etc/apt/keyrings/home-AvengeMedia-danklinux.gpg 2>/dev/null || true
-            echo "deb [signed-by=/etc/apt/keyrings/home-AvengeMedia-danklinux.gpg arch=amd64] https://download.opensuse.org/repositories/home:/AvengeMedia:/danklinux/Debian_13/ /" | $SUDO_CMD tee /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list >/dev/null
+        # Try adding DankLinux PPA for Ubuntu/Mint
+        if ! apt-cache show quickshell &>/dev/null; then
+            log_info "Adding DankLinux PPA for Quickshell..."
+            if ! command -v add-apt-repository &>/dev/null; then
+                $SUDO_CMD apt update -y && $SUDO_CMD apt install -y software-properties-common 2>/dev/null || true
+            fi
+            if command -v add-apt-repository &>/dev/null; then
+                $SUDO_CMD add-apt-repository -y ppa:avengemedia/danklinux 2>/dev/null || true
+            fi
+        fi
+    else
+        # For Debian 13 / testing / trixie
+        if ! apt-cache show quickshell &>/dev/null; then
+            log_info "Adding DankLinux repository for Debian..."
+            $SUDO_CMD mkdir -p /etc/apt/keyrings
+            if ! [ -f /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list ]; then
+                curl -fsSL "https://download.opensuse.org/repositories/home:/AvengeMedia:/danklinux/Debian_13/Release.key" | $SUDO_CMD gpg --dearmor -o /etc/apt/keyrings/home-AvengeMedia-danklinux.gpg 2>/dev/null || true
+                echo "deb [signed-by=/etc/apt/keyrings/home-AvengeMedia-danklinux.gpg arch=amd64] https://download.opensuse.org/repositories/home:/AvengeMedia:/danklinux/Debian_13/ /" | $SUDO_CMD tee /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list >/dev/null
+            fi
         fi
     fi
 
     $SUDO_CMD apt update -y
 
+    # Core system packages (excluding quickshell to prevent apt batch transaction failure)
     PACKAGES=(
         bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty xfce4-terminal xterm fastfetch git
-        quickshell xclip xdotool x11-utils x11-xserver-utils pamixer playerctl wireplumber pipewire-audio
+        xclip xdotool x11-utils x11-xserver-utils pamixer playerctl wireplumber pipewire-audio
         brightnessctl upower power-profiles-daemon bluez bluez-tools bluez-obexd libspa-0.2-bluetooth network-manager
         python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 libx11-6 libxss1
         libqt6qml6 libqt6quick6 libqt6quickcontrols2-6 libqt6svg6 qml6-module-qtquick-controls
@@ -126,7 +153,23 @@ install_debian() {
     done
 
     if [ ${#VALID_PACKAGES[@]} -gt 0 ]; then
+        log_info "Installing core system packages..."
         $SUDO_CMD apt install -y "${VALID_PACKAGES[@]}"
+    fi
+
+    # Install Quickshell in an isolated step so failure here does not break system packages
+    if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
+        log_info "Installing Quickshell package..."
+        if apt-cache show quickshell &>/dev/null; then
+            $SUDO_CMD apt install -y quickshell 2>/dev/null || log_warn "Quickshell APT installation failed due to system dependency constraints."
+        else
+            log_warn "Quickshell package not found in current APT repositories."
+        fi
+
+        if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
+            log_warn "Quickshell could not be installed via APT. You can build it from source if needed:"
+            log_warn "  git clone https://github.com/quickshell-mirror/quickshell.git && cd quickshell && cmake -B build -GNinja && sudo cmake --build build --target install"
+        fi
     fi
 }
 

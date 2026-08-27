@@ -112,7 +112,7 @@ install_debian() {
         python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 libx11-6 libxss1
         libqt6qml6 libqt6quick6 libqt6quickcontrols2-6 libqt6svg6 qml6-module-qtquick-controls
         qml6-module-qtquick-layouts qml6-module-qtquick-templates qml6-module-qtquick-shapes
-        qml6-module-qtquick-window qml6-module-qtsvg qt6-gtk-platformtheme qt6-style-kvantum qt6ct
+        qml6-module-qtquick-window qml6-module-qtsvg qml6-module-qt5compat-graphicaleffects qml6-module-qtquick-effects qt6-gtk-platformtheme qt6-style-kvantum qt6ct
         fonts-font-awesome fonts-noto-color-emoji fonts-inter fonts-roboto fonts-jetbrains-mono
     )
 

@@ -574,47 +574,6 @@ Process {
                                         onClicked: root.activeTab = "theme"
                                     }
                                 }
-
-                                // Display & Scale Submenu
-                                Rectangle {
-                                    width: parent.width
-                                    height: 36
-                                    radius: 6
-                                    color: root.activeTab === "display" ? Qt.alpha(Theme.accent, 0.20) : (subDisplayMa.containsMouse ? Qt.alpha(Theme.fg, 0.06) : "transparent")
-                                    border.width: root.activeTab === "display" ? 1 : 0
-                                    border.color: Qt.alpha(Theme.accent, 0.40)
-
-                                    Row {
-                                        anchors.fill: parent
-                                        anchors.leftMargin: 24
-                                        spacing: 8
-
-                                        Text {
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            text: "󰍹"
-                                            color: root.activeTab === "display" ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
-                                            font.family: Theme.fontFamily
-                                            font.pixelSize: 15
-                                        }
-
-                                        Text {
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            text: "Display & Scale"
-                                            color: root.activeTab === "display" ? Theme.fg : Qt.alpha(Theme.fg, 0.8)
-                                            font.pixelSize: 13
-                                        }
-                                    }
-
-                                    MouseArea {
-                                        id: subDisplayMa
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        onClicked: {
-                                            root.activeTab = "display"
-                                            root.loadDisplayInfo()
-                                        }
-                                    }
-                                }
                             }
                         }
 
@@ -947,7 +906,57 @@ Process {
                             }
                         }
 
-                        // --- MENU 4: AUTO LOCK (STANDALONE TOP-LEVEL MENU AT BOTTOM) ---
+                        // --- MENU 4: DISPLAY (STANDALONE TOP-LEVEL MENU ABOVE AUTO LOCK) ---
+                        Rectangle {
+                            width: parent.width
+                            height: 38
+                            radius: 8
+                            color: root.activeTab === "display" ? Qt.alpha(Theme.accent, 0.20) : (btnDisplayTopMa.containsMouse ? Qt.alpha(Theme.fg, 0.08) : "transparent")
+                            border.width: root.activeTab === "display" ? 1 : 0
+                            border.color: Qt.alpha(Theme.accent, 0.40)
+
+                            Item {
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+
+                                Row {
+                                    anchors.left: parent.left
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 8
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "󰍹"
+                                        color: Theme.accent
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 16
+                                    }
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "Display"
+                                        color: Theme.fg
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 13
+                                        font.bold: true
+                                    }
+                                }
+                            }
+
+                            MouseArea {
+                                id: btnDisplayTopMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.activeTab = "display"
+                                    root.loadDisplayInfo()
+                                }
+                            }
+                        }
+
+                        // --- MENU 5: AUTO LOCK (STANDALONE TOP-LEVEL MENU AT BOTTOM) ---
                         Rectangle {
                             width: parent.width
                             height: 38

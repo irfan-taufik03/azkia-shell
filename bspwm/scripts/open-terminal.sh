@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Open Terminal helper with OpenGL/VM fallback support
+export LIBGL_ALWAYS_SOFTWARE=1
 
 if command -v kitty &>/dev/null; then
     # Try launching kitty. If it fails (e.g. OpenGL issue in VMs), fall back

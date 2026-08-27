@@ -108,9 +108,70 @@ Window {
     property var wallpapersList: []
     property var bspwmData: ({ "gap": 8, "border": 2, "rules": [] })
     property var keybindingsList: []
+    property var displayData: ({ "monitors": [], "primary": "eDP-1", "rotation": "normal", "supported_modes": [], "current_mode": "1920x1080", "current_scale": "100%" })
+
+    Process {
+        id: displayGetProc
+        command: ["python3", Sys.scriptPath("display_manager.py"), "--get"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (text && text.trim().length > 0) {
+                    root.parseDisplayInfo(text)
+                }
+            }
+        }
+    }
+
+    Process {
+        id: displaySetProc
+    }
+
+    function loadDisplayInfo() {
+        displayGetProc.running = false
+        displayGetProc.running = true
+    }
+
+    function parseDisplayInfo(t) {
+        try {
+            let parsed = JSON.parse(t.trim())
+            if (parsed && !parsed.error) {
+                root.displayData = parsed
+            }
+        } catch(e) {}
+    }
+
+    function setResolution(res) {
+        let mon = (root.displayData && root.displayData.primary) ? root.displayData.primary : "eDP-1"
+        displaySetProc.command = ["python3", Sys.scriptPath("display_manager.py"), "--set-resolution", mon, res]
+        displaySetProc.running = false
+        displaySetProc.running = true
+        let obj = root.displayData || {}
+        obj.current_mode = res
+        root.displayData = obj
+    }
+
+    function setRotation(rot) {
+        let mon = (root.displayData && root.displayData.primary) ? root.displayData.primary : "eDP-1"
+        displaySetProc.command = ["python3", Sys.scriptPath("display_manager.py"), "--set-rotation", mon, rot]
+        displaySetProc.running = false
+        displaySetProc.running = true
+        let obj = root.displayData || {}
+        obj.rotation = rot
+        root.displayData = obj
+    }
+
+    function setScale(sc) {
+        let mon = (root.displayData && root.displayData.primary) ? root.displayData.primary : "eDP-1"
+        displaySetProc.command = ["python3", Sys.scriptPath("display_manager.py"), "--set-scale", mon, sc]
+        displaySetProc.running = false
+        displaySetProc.running = true
+        let obj = root.displayData || {}
+        obj.current_scale = sc
+        root.displayData = obj
+    }
 
     // Processes
-        Process {
+    Process {
         id: bspwmSetProc
     }
 
@@ -511,6 +572,47 @@ Process {
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         onClicked: root.activeTab = "theme"
+                                    }
+                                }
+
+                                // Display & Scale Submenu
+                                Rectangle {
+                                    width: parent.width
+                                    height: 36
+                                    radius: 6
+                                    color: root.activeTab === "display" ? Qt.alpha(Theme.accent, 0.20) : (subDisplayMa.containsMouse ? Qt.alpha(Theme.fg, 0.06) : "transparent")
+                                    border.width: root.activeTab === "display" ? 1 : 0
+                                    border.color: Qt.alpha(Theme.accent, 0.40)
+
+                                    Row {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 24
+                                        spacing: 8
+
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: "󰍹"
+                                            color: root.activeTab === "display" ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: 15
+                                        }
+
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: "Display & Scale"
+                                            color: root.activeTab === "display" ? Theme.fg : Qt.alpha(Theme.fg, 0.8)
+                                            font.pixelSize: 13
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        id: subDisplayMa
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        onClicked: {
+                                            root.activeTab = "display"
+                                            root.loadDisplayInfo()
+                                        }
                                     }
                                 }
                             }
@@ -2395,6 +2497,429 @@ Process {
 
                             Behavior on opacity { NumberAnimation { duration: 250 } }
                             Behavior on color { ColorAnimation { duration: 150 } }
+                        }
+                    }
+                }
+
+                // --- DISPLAY & SCALE PANEL ---
+                Item {
+                    id: displayPanel
+                    anchors.fill: parent
+                    visible: root.activeTab === "display"
+
+                    Flickable {
+                        id: displayFlick
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        contentHeight: displayCol.height + 20
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+
+                        Column {
+                            id: displayCol
+                            width: displayFlick.width - 24
+                            spacing: 16
+
+                            // CARD 1: DISPLAY OVERVIEW CARD
+                            Rectangle {
+                                width: parent.width
+                                height: 96
+                                radius: Sys.moduleRadius
+                                color: Sys.customModuleBg
+                                border.width: 1
+                                border.color: Sys.customModuleBorder
+
+                                Item {
+                                    anchors.fill: parent
+                                    anchors.margins: 16
+
+                                    Row {
+                                        anchors.fill: parent
+                                        spacing: 16
+
+                                        // Monitor Icon Box
+                                        Rectangle {
+                                            width: 64
+                                            height: 64
+                                            radius: 12
+                                            color: Qt.alpha(Theme.accent, 0.15)
+                                            border.width: 1
+                                            border.color: Qt.alpha(Theme.accent, 0.4)
+                                            anchors.verticalCenter: parent.verticalCenter
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: "󰍹"
+                                                color: Theme.accent
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: 32
+                                            }
+                                        }
+
+                                        Column {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            spacing: 4
+
+                                            Row {
+                                                spacing: 8
+                                                Text {
+                                                    text: root.displayData.primary ? root.displayData.primary : "Active Display"
+                                                    color: Theme.fg
+                                                    font.family: Theme.fontFamily
+                                                    font.pixelSize: 16
+                                                    font.bold: true
+                                                }
+                                                Rectangle {
+                                                    width: priTxt.width + 12
+                                                    height: 20
+                                                    radius: 10
+                                                    color: Qt.alpha(Theme.accent, 0.2)
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    Text {
+                                                        id: priTxt
+                                                        anchors.centerIn: parent
+                                                        text: "PRIMARY"
+                                                        color: Theme.accent
+                                                        font.family: Theme.fontFamily
+                                                        font.pixelSize: 9
+                                                        font.bold: true
+                                                    }
+                                                }
+                                            }
+
+                                            Text {
+                                                text: "Resolution: " + (root.displayData.current_mode || "1920x1080") + "  •  Scale: " + (root.displayData.current_scale || "100%") + "  •  Rotation: " + (root.displayData.rotation || "normal")
+                                                color: Qt.alpha(Theme.fg, 0.6)
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: 12
+                                            }
+                                        }
+
+                                        Item {
+                                            width: displayCol.width - 350
+                                            height: 1
+                                        }
+
+                                        // Refresh Button
+                                        Rectangle {
+                                            width: 38
+                                            height: 38
+                                            radius: 8
+                                            color: refDispMa.containsMouse ? Qt.alpha(Theme.accent, 0.2) : Qt.alpha(Theme.fg, 0.06)
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            border.width: 1
+                                            border.color: Qt.alpha(Theme.fg, 0.1)
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: "󰑐"
+                                                color: Theme.accent
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: 16
+                                            }
+
+                                            MouseArea {
+                                                id: refDispMa
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.loadDisplayInfo()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // CARD 2: DISPLAY RESOLUTION SELECTION
+                            Rectangle {
+                                width: parent.width
+                                height: resCol.height + 32
+                                radius: Sys.moduleRadius
+                                color: Sys.customModuleBg
+                                border.width: 1
+                                border.color: Sys.customModuleBorder
+
+                                Column {
+                                    id: resCol
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    anchors.margins: 16
+                                    spacing: 12
+
+                                    Row {
+                                        width: parent.width
+                                        spacing: 8
+                                        Text {
+                                            text: "󰍹"
+                                            color: Theme.accent
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: 16
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Text {
+                                            text: "Display Resolution"
+                                            color: Theme.fg
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: 14
+                                            font.bold: true
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                    }
+
+                                    Text {
+                                        text: "Select a supported screen resolution for your monitor:"
+                                        color: Qt.alpha(Theme.fg, 0.6)
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 12
+                                    }
+
+                                    Flow {
+                                        width: parent.width
+                                        spacing: 8
+
+                                        Repeater {
+                                            model: (root.displayData && root.displayData.supported_modes && root.displayData.supported_modes.length > 0) ? root.displayData.supported_modes.slice(0, 16) : ["1920x1080", "1680x1050", "1400x900", "1280x720", "1024x768", "800x600"]
+
+                                            Rectangle {
+                                                required property string modelData
+                                                width: 130
+                                                height: 38
+                                                radius: 8
+                                                readonly property bool isSelected: root.displayData.current_mode === modelData
+                                                color: isSelected ? Qt.alpha(Theme.accent, 0.25) : (resItemMa.containsMouse ? Qt.alpha(Theme.fg, 0.12) : Qt.alpha(Theme.fg, 0.05))
+                                                border.width: isSelected ? 1.5 : 1
+                                                border.color: isSelected ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
+
+                                                Row {
+                                                    anchors.centerIn: parent
+                                                    spacing: 6
+                                                    Text {
+                                                        text: isSelected ? "󰄬" : "󰘲"
+                                                        color: isSelected ? Theme.accent : Qt.alpha(Theme.fg, 0.5)
+                                                        font.family: Theme.fontFamily
+                                                        font.pixelSize: 13
+                                                    }
+                                                    Text {
+                                                        text: modelData
+                                                        color: isSelected ? Theme.accent : Theme.fg
+                                                        font.family: Theme.fontFamily
+                                                        font.pixelSize: 12
+                                                        font.bold: isSelected
+                                                    }
+                                                }
+
+                                                MouseArea {
+                                                    id: resItemMa
+                                                    anchors.fill: parent
+                                                    hoverEnabled: true
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: {
+                                                        root.setResolution(modelData)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // CARD 3: DISPLAY SCALING SELECTION
+                            Rectangle {
+                                width: parent.width
+                                height: scaleCol.height + 32
+                                radius: Sys.moduleRadius
+                                color: Sys.customModuleBg
+                                border.width: 1
+                                border.color: Sys.customModuleBorder
+
+                                Column {
+                                    id: scaleCol
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    anchors.margins: 16
+                                    spacing: 12
+
+                                    Row {
+                                        width: parent.width
+                                        spacing: 8
+                                        Text {
+                                            text: "󰁌"
+                                            color: Theme.accent
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: 16
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Text {
+                                            text: "Display Scaling"
+                                            color: Theme.fg
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: 14
+                                            font.bold: true
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                    }
+
+                                    Text {
+                                        text: "Adjust global desktop scaling percentage:"
+                                        color: Qt.alpha(Theme.fg, 0.6)
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 12
+                                    }
+
+                                    Row {
+                                        width: parent.width
+                                        spacing: 12
+
+                                        Repeater {
+                                            model: ["100%", "115%", "125%", "150%"]
+
+                                            Rectangle {
+                                                required property string modelData
+                                                width: (parent.width - 36) / 4
+                                                height: 48
+                                                radius: 8
+                                                readonly property bool isSelected: (root.displayData.current_scale || "100%") === modelData
+                                                color: isSelected ? Qt.alpha(Theme.accent, 0.25) : (scaleItemMa.containsMouse ? Qt.alpha(Theme.fg, 0.12) : Qt.alpha(Theme.fg, 0.05))
+                                                border.width: isSelected ? 1.5 : 1
+                                                border.color: isSelected ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
+
+                                                Column {
+                                                    anchors.centerIn: parent
+                                                    spacing: 2
+                                                    Text {
+                                                        anchors.horizontalCenter: parent.horizontalCenter
+                                                        text: modelData
+                                                        color: isSelected ? Theme.accent : Theme.fg
+                                                        font.family: Theme.fontFamily
+                                                        font.pixelSize: 14
+                                                        font.bold: true
+                                                    }
+                                                    Text {
+                                                        anchors.horizontalCenter: parent.horizontalCenter
+                                                        text: modelData === "100%" ? "Standard" : (modelData === "115%" ? "Medium" : (modelData === "125%" ? "Large" : "Extra Large"))
+                                                        color: isSelected ? Theme.accent : Qt.alpha(Theme.fg, 0.5)
+                                                        font.family: Theme.fontFamily
+                                                        font.pixelSize: 10
+                                                    }
+                                                }
+
+                                                MouseArea {
+                                                    id: scaleItemMa
+                                                    anchors.fill: parent
+                                                    hoverEnabled: true
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: {
+                                                        root.setScale(modelData)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // CARD 4: DISPLAY ROTATION
+                            Rectangle {
+                                width: parent.width
+                                height: rotCol.height + 32
+                                radius: Sys.moduleRadius
+                                color: Sys.customModuleBg
+                                border.width: 1
+                                border.color: Sys.customModuleBorder
+
+                                Column {
+                                    id: rotCol
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    anchors.margins: 16
+                                    spacing: 12
+
+                                    Row {
+                                        width: parent.width
+                                        spacing: 8
+                                        Text {
+                                            text: "󰑔"
+                                            color: Theme.accent
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: 16
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Text {
+                                            text: "Screen & Window Rotation"
+                                            color: Theme.fg
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: 14
+                                            font.bold: true
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                    }
+
+                                    Text {
+                                        text: "Rotate monitor orientation:"
+                                        color: Qt.alpha(Theme.fg, 0.6)
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 12
+                                    }
+
+                                    Row {
+                                        width: parent.width
+                                        spacing: 12
+
+                                        Repeater {
+                                            model: [
+                                                { label: "Normal (0°)", key: "normal", icon: "󰤼" },
+                                                { label: "Left (90°)", key: "left", icon: "󰤿" },
+                                                { label: "Right (90°)", key: "right", icon: "󰥂" },
+                                                { label: "Inverted (180°)", key: "inverted", icon: "󰤽" }
+                                            ]
+
+                                            Rectangle {
+                                                required property var modelData
+                                                width: (parent.width - 36) / 4
+                                                height: 52
+                                                radius: 8
+                                                readonly property bool isSelected: (root.displayData.rotation || "normal") === modelData.key
+                                                color: isSelected ? Qt.alpha(Theme.accent, 0.25) : (rotItemMa.containsMouse ? Qt.alpha(Theme.fg, 0.12) : Qt.alpha(Theme.fg, 0.05))
+                                                border.width: isSelected ? 1.5 : 1
+                                                border.color: isSelected ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
+
+                                                Column {
+                                                    anchors.centerIn: parent
+                                                    spacing: 4
+                                                    Text {
+                                                        anchors.horizontalCenter: parent.horizontalCenter
+                                                        text: modelData.icon
+                                                        color: isSelected ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                                                        font.family: Theme.fontFamily
+                                                        font.pixelSize: 16
+                                                    }
+                                                    Text {
+                                                        anchors.horizontalCenter: parent.horizontalCenter
+                                                        text: modelData.label
+                                                        color: isSelected ? Theme.accent : Theme.fg
+                                                        font.family: Theme.fontFamily
+                                                        font.pixelSize: 11
+                                                        font.bold: isSelected
+                                                    }
+                                                }
+
+                                                MouseArea {
+                                                    id: rotItemMa
+                                                    anchors.fill: parent
+                                                    hoverEnabled: true
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: {
+                                                        root.setRotation(modelData.key)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

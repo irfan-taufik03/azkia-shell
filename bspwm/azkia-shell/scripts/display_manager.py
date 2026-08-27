@@ -5,30 +5,26 @@ import json
 import re
 import os
 
-XRESOURCES_PATH = os.path.expanduser("~/.Xresources")
+CONFIG_DIR = os.path.expanduser("~/.config/bspwm/azkia-shell")
+SCALE_FILE = os.path.join(CONFIG_DIR, "display_scale.json")
 
-def get_current_dpi():
+def get_saved_scale():
     try:
-        proc = subprocess.run(['xrdb', '-query'], capture_output=True, text=True)
-        if proc.returncode == 0:
-            for line in proc.stdout.splitlines():
-                if 'Xft.dpi' in line:
-                    parts = line.split(':')
-                    if len(parts) >= 2:
-                        return int(parts[1].strip())
+        if os.path.exists(SCALE_FILE):
+            with open(SCALE_FILE, 'r') as f:
+                data = json.load(f)
+                return data.get("scale", "100%")
     except Exception:
         pass
-    return 96
+    return "100%"
 
-def dpi_to_scale_str(dpi):
-    if dpi >= 140:
-        return "150%"
-    elif dpi >= 118:
-        return "125%"
-    elif dpi >= 105:
-        return "115%"
-    else:
-        return "100%"
+def save_scale(scale_str):
+    try:
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        with open(SCALE_FILE, 'w') as f:
+            json.dump({"scale": scale_str}, f)
+    except Exception:
+        pass
 
 def get_display_info():
     try:
@@ -72,8 +68,7 @@ def get_display_info():
         supported_modes = modes_map.get(active_mon, [])
         active_mode = active_mode_map.get(active_mon, supported_modes[0] if supported_modes else "1920x1080")
 
-        current_dpi = get_current_dpi()
-        current_scale = dpi_to_scale_str(current_dpi)
+        current_scale = get_saved_scale()
 
         return {
             "monitors": monitors,
@@ -81,8 +76,7 @@ def get_display_info():
             "rotation": rotation_map.get(active_mon, "normal"),
             "supported_modes": supported_modes,
             "current_mode": active_mode,
-            "current_scale": current_scale,
-            "current_dpi": current_dpi
+            "current_scale": current_scale
         }
     except Exception as e:
         return {"error": str(e)}
@@ -101,41 +95,30 @@ def set_rotation(output, rotation):
     except Exception as e:
         return {"error": str(e)}
 
-def update_xresources_dpi(dpi):
-    try:
-        lines = []
-        if os.path.exists(XRESOURCES_PATH):
-            with open(XRESOURCES_PATH, 'r') as f:
-                lines = f.readlines()
-        
-        new_lines = [l for l in lines if not l.strip().startswith('Xft.dpi:')]
-        new_lines.append(f"Xft.dpi: {dpi}\n")
-
-        with open(XRESOURCES_PATH, 'w') as f:
-            f.writelines(new_lines)
-    except Exception as e:
-        pass
-
 def set_scale(output, scale_str):
-    dpi_map = {
-        "100%": 96,
-        "115%": 110,
-        "125%": 120,
-        "150%": 144
+    # Global Display Canvas Scaling (like KDE Plasma)
+    # Scale calculation: 1 / scale_percentage
+    # 100% -> 1x1
+    # 115% -> 0.8695x0.8695
+    # 125% -> 0.8x0.8
+    # 150% -> 0.6667x0.6667
+    scale_map = {
+        "100%": "1x1",
+        "115%": "0.8695x0.8695",
+        "125%": "0.8x0.8",
+        "150%": "0.6667x0.6667"
     }
-    dpi = dpi_map.get(scale_str, 96)
+    scale_val = scale_map.get(scale_str, "1x1")
 
     try:
-        # 1. Reset xrandr canvas scaling to 1x1 with bilinear filter to prevent raster blur
-        subprocess.run(['xrandr', '--output', output, '--scale', '1x1', '--filter', 'bilinear'], capture_output=True, text=True)
+        # Reset Xft.dpi to 96 standard so fonts don't double scale
+        subprocess.run(['xrdb', '-merge'], input="Xft.dpi: 96\n", text=True, capture_output=True)
+
+        # Apply global display xrandr scale with bilinear filter
+        proc = subprocess.run(['xrandr', '--output', output, '--scale', scale_val, '--filter', 'bilinear'], capture_output=True, text=True)
         
-        # 2. Merge Xft.dpi into active X server resource manager (Vector DPI Scaling - Crisp & Sharp!)
-        proc = subprocess.run(['xrdb', '-merge'], input=f"Xft.dpi: {dpi}\n", text=True, capture_output=True)
-
-        # 3. Save to ~/.Xresources for persistence
-        update_xresources_dpi(dpi)
-
-        return {"success": True, "scale": scale_str, "dpi": dpi}
+        save_scale(scale_str)
+        return {"success": proc.returncode == 0, "scale": scale_str, "xrandr_scale": scale_val, "output": proc.stdout or proc.stderr}
     except Exception as e:
         return {"error": str(e)}
 
@@ -150,7 +133,7 @@ def main():
     elif arg == "--set-resolution" and len(sys.argv) >= 4:
         print(json.dumps(set_resolution(sys.argv[2], sys.argv[3])))
     elif arg == "--set-rotation" and len(sys.argv) >= 4:
-        print(json.argv if len(sys.argv) < 4 else json.dumps(set_rotation(sys.argv[2], sys.argv[3])))
+        print(json.dumps(set_rotation(sys.argv[2], sys.argv[3])))
     elif arg == "--set-scale" and len(sys.argv) >= 4:
         print(json.dumps(set_scale(sys.argv[2], sys.argv[3])))
     else:

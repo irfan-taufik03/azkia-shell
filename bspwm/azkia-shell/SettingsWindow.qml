@@ -2847,7 +2847,7 @@ Process {
                                             anchors.verticalCenter: parent.verticalCenter
                                         }
                                         Text {
-                                            text: "Display Scaling"
+                                            text: "Scale"
                                             color: Theme.fg
                                             font.family: Theme.fontFamily
                                             font.pixelSize: 14
@@ -2857,7 +2857,7 @@ Process {
                                     }
 
                                     Text {
-                                        text: "Adjust global desktop scaling percentage:"
+                                        text: "Adjust global display scale factor (KDE Plasma style):"
                                         color: Qt.alpha(Theme.fg, 0.6)
                                         font.family: Theme.fontFamily
                                         font.pixelSize: 12

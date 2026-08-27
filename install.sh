@@ -134,7 +134,7 @@ install_arch() {
     log_info "Installing packages for Arch Linux..."
 
     PACKAGES=(
-        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxsession xfce4-power-manager kitty xfce4-terminal xterm fastfetch git
+        base-devel bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxsession xfce4-power-manager kitty xfce4-terminal xterm fastfetch git
         xclip xdotool xorg-xprop xorg-xset xorg-xrandr xorg-xsetroot pamixer playerctl wireplumber pipewire-pulse
         brightnessctl upower power-profiles-daemon bluez bluez-utils networkmanager
         python python-gobject gtk3 libx11 libxss
@@ -147,15 +147,30 @@ install_arch() {
     # Install Quickshell from AUR if not present
     if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
         log_info "Installing Quickshell from AUR..."
+        REAL_USER="${SUDO_USER:-$USER}"
         if command -v yay &>/dev/null; then
-            yay -S --needed --noconfirm quickshell-git
+            if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
+                su "$SUDO_USER" -c "yay -S --needed --noconfirm quickshell-git"
+            else
+                yay -S --needed --noconfirm quickshell-git
+            fi
         elif command -v paru &>/dev/null; then
-            paru -S --needed --noconfirm quickshell-git
+            if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
+                su "$SUDO_USER" -c "paru -S --needed --noconfirm quickshell-git"
+            else
+                paru -S --needed --noconfirm quickshell-git
+            fi
         else
             log_info "No AUR helper found. Building quickshell-git manually..."
             BUILD_DIR=$(mktemp -d)
+            chmod 777 "$BUILD_DIR"
             git clone https://aur.archlinux.org/quickshell-git.git "$BUILD_DIR"
-            (cd "$BUILD_DIR" && makepkg -si --noconfirm)
+            chown -R "$REAL_USER" "$BUILD_DIR" 2>/dev/null || true
+            if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
+                su "$SUDO_USER" -c "cd '$BUILD_DIR' && makepkg -si --noconfirm"
+            else
+                (cd "$BUILD_DIR" && makepkg -si --noconfirm)
+            fi
             rm -rf "$BUILD_DIR"
         fi
     fi

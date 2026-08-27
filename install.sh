@@ -142,6 +142,11 @@ install_arch() {
         ttf-font-awesome noto-fonts-emoji inter-font ttf-roboto ttf-jetbrains-mono
     )
 
+    # Check if quickshell is available in pacman official repositories
+    if pacman -Si quickshell &>/dev/null; then
+        PACKAGES+=(quickshell)
+    fi
+
     $SUDO_CMD pacman -S --needed --noconfirm "${PACKAGES[@]}"
 
     # Install Quickshell from AUR if not present
@@ -150,15 +155,15 @@ install_arch() {
         REAL_USER="${SUDO_USER:-$USER}"
         if command -v yay &>/dev/null; then
             if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
-                su "$SUDO_USER" -c "yay -S --needed --noconfirm quickshell-git"
+                su "$SUDO_USER" -c "yay -S --needed --noconfirm quickshell" 2>/dev/null || su "$SUDO_USER" -c "yay -S --needed --noconfirm quickshell-git"
             else
-                yay -S --needed --noconfirm quickshell-git
+                yay -S --needed --noconfirm quickshell 2>/dev/null || yay -S --needed --noconfirm quickshell-git
             fi
         elif command -v paru &>/dev/null; then
             if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
-                su "$SUDO_USER" -c "paru -S --needed --noconfirm quickshell-git"
+                su "$SUDO_USER" -c "paru -S --needed --noconfirm quickshell" 2>/dev/null || su "$SUDO_USER" -c "paru -S --needed --noconfirm quickshell-git"
             else
-                paru -S --needed --noconfirm quickshell-git
+                paru -S --needed --noconfirm quickshell 2>/dev/null || paru -S --needed --noconfirm quickshell-git
             fi
         else
             log_info "No AUR helper found. Building quickshell-git manually..."

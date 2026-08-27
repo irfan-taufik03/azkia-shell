@@ -2965,16 +2965,16 @@ Process {
 
                                         Repeater {
                                             model: [
-                                                { label: "Normal (0°)", key: "normal", icon: "󰤼" },
-                                                { label: "Left (90°)", key: "left", icon: "󰤿" },
-                                                { label: "Right (90°)", key: "right", icon: "󰥂" },
-                                                { label: "Inverted (180°)", key: "inverted", icon: "󰤽" }
+                                                { label: "Normal (0°)", key: "normal", rotAngle: 0 },
+                                                { label: "Left (90°)", key: "left", rotAngle: 270 },
+                                                { label: "Right (90°)", key: "right", rotAngle: 90 },
+                                                { label: "Inverted (180°)", key: "inverted", rotAngle: 180 }
                                             ]
 
                                             Rectangle {
                                                 required property var modelData
                                                 width: (parent.width - 36) / 4
-                                                height: 52
+                                                height: 54
                                                 radius: 8
                                                 readonly property bool isSelected: (root.displayData.rotation || "normal") === modelData.key
                                                 color: isSelected ? Qt.alpha(Theme.accent, 0.25) : (rotItemMa.containsMouse ? Qt.alpha(Theme.fg, 0.12) : Qt.alpha(Theme.fg, 0.05))
@@ -2984,13 +2984,17 @@ Process {
                                                 Column {
                                                     anchors.centerIn: parent
                                                     spacing: 4
+
                                                     Text {
                                                         anchors.horizontalCenter: parent.horizontalCenter
-                                                        text: modelData.icon
+                                                        text: "󰍹"
                                                         color: isSelected ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
                                                         font.family: Theme.fontFamily
-                                                        font.pixelSize: 16
+                                                        font.pixelSize: 18
+                                                        rotation: modelData.rotAngle
+                                                        Behavior on rotation { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
                                                     }
+
                                                     Text {
                                                         anchors.horizontalCenter: parent.horizontalCenter
                                                         text: modelData.label

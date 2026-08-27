@@ -84,16 +84,49 @@ detect_distro() {
     fi
 }
 
+build_quickshell_from_source() {
+    log_info "Building Quickshell automatically from source..."
+
+    log_info "Installing build dependencies for Quickshell..."
+    $SUDO_CMD apt install -y cmake ninja-build build-essential \
+        qt6-base-dev qt6-declarative-dev qt6-wayland libwayland-dev \
+        wayland-protocols libpipewire-0.3-dev libdbus-1-dev \
+        libxkbcommon-dev pkg-config libqt6svg6-dev 2>/dev/null || true
+
+    REAL_USER="${SUDO_USER:-$USER}"
+    BUILD_DIR=$(mktemp -d)
+    chmod 777 "$BUILD_DIR"
+
+    log_info "Cloning Quickshell repository..."
+    if git clone https://github.com/quickshell-mirror/quickshell.git "$BUILD_DIR"; then
+        chown -R "$REAL_USER" "$BUILD_DIR" 2>/dev/null || true
+        log_info "Compiling Quickshell binary with CMake & Ninja..."
+        if (cd "$BUILD_DIR" && cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release && cmake --build build); then
+            $SUDO_CMD cmake --install "$BUILD_DIR/build"
+            log_success "Quickshell built and installed successfully from source!"
+        else
+            log_error "Failed to compile Quickshell from source."
+        fi
+    else
+        log_error "Failed to clone Quickshell repository."
+    fi
+
+    rm -rf "$BUILD_DIR" 2>/dev/null || true
+}
+
 install_debian() {
     log_info "Setting up repositories and installing packages for Debian/Ubuntu/Linux Mint..."
 
-    # Detect distro specifics
+    # Detect distro specifics and Ubuntu base codename
     IS_UBUNTU_BASED=false
+    UBUNTU_CODENAME=""
     if [ -f /etc/os-release ]; then
         if grep -qi -E 'ubuntu|mint|pop' /etc/os-release; then
             IS_UBUNTU_BASED=true
         fi
+        UBUNTU_CODENAME=$(grep -E '^UBUNTU_CODENAME=' /etc/os-release | cut -d= -f2 | tr -d '"')
     fi
+    [ -z "$UBUNTU_CODENAME" ] && UBUNTU_CODENAME="noble"
 
     # Clean up obsolete butterrepo repository if it exists
     if [ -f /etc/apt/sources.list.d/butterrepo.list ]; then
@@ -109,10 +142,19 @@ install_debian() {
 
         # Try adding DankLinux PPA for Ubuntu/Mint
         if ! apt-cache show quickshell &>/dev/null; then
-            log_info "Adding DankLinux PPA for Quickshell..."
+            log_info "Configuring DankLinux PPA for Ubuntu/Mint ($UBUNTU_CODENAME)..."
+            $SUDO_CMD mkdir -p /etc/apt/keyrings
+
             if ! command -v add-apt-repository &>/dev/null; then
                 $SUDO_CMD apt update -y && $SUDO_CMD apt install -y software-properties-common 2>/dev/null || true
             fi
+
+            # Explicitly add PPA for $UBUNTU_CODENAME to fix Linux Mint codename mismatches
+            if ! [ -f /etc/apt/sources.list.d/avengemedia-danklinux.list ]; then
+                echo "deb [signed-by=/etc/apt/keyrings/avengemedia-danklinux.gpg] https://ppa.launchpadcontent.net/avengemedia/danklinux/ubuntu $UBUNTU_CODENAME main" | $SUDO_CMD tee /etc/apt/sources.list.d/avengemedia-danklinux.list >/dev/null 2>/dev/null || true
+                curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x8c4656689d0bdad9920d3f23497eaecb6f4e1f73" | $SUDO_CMD gpg --dearmor -o /etc/apt/keyrings/avengemedia-danklinux.gpg 2>/dev/null || true
+            fi
+
             if command -v add-apt-repository &>/dev/null; then
                 $SUDO_CMD add-apt-repository -y ppa:avengemedia/danklinux 2>/dev/null || true
             fi
@@ -157,7 +199,7 @@ install_debian() {
         $SUDO_CMD apt install -y "${VALID_PACKAGES[@]}"
     fi
 
-    # Install Quickshell in an isolated step so failure here does not break system packages
+    # Install Quickshell in an isolated step
     if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
         log_info "Installing Quickshell package..."
         if apt-cache show quickshell &>/dev/null; then
@@ -166,9 +208,10 @@ install_debian() {
             log_warn "Quickshell package not found in current APT repositories."
         fi
 
+        # Auto fallback: Compile from source if quickshell is still missing
         if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
-            log_warn "Quickshell could not be installed via APT. You can build it from source if needed:"
-            log_warn "  git clone https://github.com/quickshell-mirror/quickshell.git && cd quickshell && cmake -B build -GNinja && sudo cmake --build build --target install"
+            log_warn "Quickshell is not present via APT. Falling back to automatic source build..."
+            build_quickshell_from_source
         fi
     fi
 }

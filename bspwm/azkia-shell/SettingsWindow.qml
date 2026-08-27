@@ -109,6 +109,7 @@ Window {
     property var bspwmData: ({ "gap": 8, "border": 2, "rules": [] })
     property var keybindingsList: []
     property var displayData: ({ "monitors": [], "primary": "eDP-1", "rotation": "normal", "supported_modes": [], "current_mode": "1920x1080", "current_scale": "100%" })
+    property bool resDropdownOpen: false
 
     Process {
         id: displayGetProc
@@ -2639,7 +2640,7 @@ Process {
                                 }
                             }
 
-                            // CARD 2: DISPLAY RESOLUTION SELECTION
+                            // CARD 2: DISPLAY RESOLUTION SELECTION (DROPDOWN)
                             Rectangle {
                                 width: parent.width
                                 height: resCol.height + 32
@@ -2683,48 +2684,133 @@ Process {
                                         font.pixelSize: 12
                                     }
 
-                                    Flow {
-                                        width: parent.width
-                                        spacing: 8
+                                    // Dropdown Box Container
+                                    Column {
+                                        width: Math.min(parent.width, 360)
+                                        spacing: 6
 
-                                        Repeater {
-                                            model: (root.displayData && root.displayData.supported_modes && root.displayData.supported_modes.length > 0) ? root.displayData.supported_modes.slice(0, 16) : ["1920x1080", "1680x1050", "1400x900", "1280x720", "1024x768", "800x600"]
+                                        // Dropdown Selector Button
+                                        Rectangle {
+                                            width: parent.width
+                                            height: 42
+                                            radius: 8
+                                            color: root.resDropdownOpen ? Qt.alpha(Theme.accent, 0.15) : (resBoxMa.containsMouse ? Qt.alpha(Theme.fg, 0.1) : Qt.alpha(Theme.fg, 0.05))
+                                            border.width: root.resDropdownOpen ? 1.5 : 1
+                                            border.color: root.resDropdownOpen ? Theme.accent : Qt.alpha(Theme.fg, 0.2)
 
-                                            Rectangle {
-                                                required property string modelData
-                                                width: 130
-                                                height: 38
-                                                radius: 8
-                                                readonly property bool isSelected: root.displayData.current_mode === modelData
-                                                color: isSelected ? Qt.alpha(Theme.accent, 0.25) : (resItemMa.containsMouse ? Qt.alpha(Theme.fg, 0.12) : Qt.alpha(Theme.fg, 0.05))
-                                                border.width: isSelected ? 1.5 : 1
-                                                border.color: isSelected ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
+                                            Row {
+                                                anchors.fill: parent
+                                                anchors.leftMargin: 12
+                                                anchors.rightMargin: 12
+                                                spacing: 10
 
-                                                Row {
-                                                    anchors.centerIn: parent
-                                                    spacing: 6
-                                                    Text {
-                                                        text: isSelected ? "󰄬" : "󰘲"
-                                                        color: isSelected ? Theme.accent : Qt.alpha(Theme.fg, 0.5)
-                                                        font.family: Theme.fontFamily
-                                                        font.pixelSize: 13
-                                                    }
-                                                    Text {
-                                                        text: modelData
-                                                        color: isSelected ? Theme.accent : Theme.fg
-                                                        font.family: Theme.fontFamily
-                                                        font.pixelSize: 12
-                                                        font.bold: isSelected
-                                                    }
+                                                Text {
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    text: "󰘲"
+                                                    color: Theme.accent
+                                                    font.family: Theme.fontFamily
+                                                    font.pixelSize: 15
                                                 }
 
-                                                MouseArea {
-                                                    id: resItemMa
-                                                    anchors.fill: parent
-                                                    hoverEnabled: true
-                                                    cursorShape: Qt.PointingHandCursor
-                                                    onClicked: {
-                                                        root.setResolution(modelData)
+                                                Text {
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    text: (root.displayData && root.displayData.current_mode) ? root.displayData.current_mode : "Select Resolution..."
+                                                    color: Theme.fg
+                                                    font.family: Theme.fontFamily
+                                                    font.pixelSize: 13
+                                                    font.bold: true
+                                                }
+
+                                                Item { Layout.fillWidth: true }
+
+                                                Text {
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    text: root.resDropdownOpen ? "󰅀" : "󰅂"
+                                                    color: root.resDropdownOpen ? Theme.accent : Qt.alpha(Theme.fg, 0.6)
+                                                    font.family: Theme.fontFamily
+                                                    font.pixelSize: 14
+                                                }
+                                            }
+
+                                            MouseArea {
+                                                id: resBoxMa
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.resDropdownOpen = !root.resDropdownOpen
+                                            }
+                                        }
+
+                                        // Dropdown Menu List Popup
+                                        Rectangle {
+                                            width: parent.width
+                                            height: root.resDropdownOpen ? Math.min(220, resListCol.height + 12) : 0
+                                            visible: height > 0
+                                            clip: true
+                                            radius: 8
+                                            color: Sys.customModuleBg
+                                            border.width: 1
+                                            border.color: Qt.alpha(Theme.accent, 0.3)
+
+                                            Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutQuad } }
+
+                                            Flickable {
+                                                anchors.fill: parent
+                                                anchors.margins: 6
+                                                contentHeight: resListCol.height
+                                                clip: true
+
+                                                Column {
+                                                    id: resListCol
+                                                    width: parent.width
+                                                    spacing: 4
+
+                                                    Repeater {
+                                                        model: (root.displayData && root.displayData.supported_modes && root.displayData.supported_modes.length > 0) ? root.displayData.supported_modes : ["1920x1080", "1680x1050", "1400x900", "1280x720", "1024x768", "800x600"]
+
+                                                        Rectangle {
+                                                            required property string modelData
+                                                            width: parent.width
+                                                            height: 34
+                                                            radius: 6
+                                                            readonly property bool isSelected: root.displayData.current_mode === modelData
+                                                            color: isSelected ? Qt.alpha(Theme.accent, 0.22) : (resItemMenuMa.containsMouse ? Qt.alpha(Theme.fg, 0.08) : "transparent")
+
+                                                            Row {
+                                                                anchors.fill: parent
+                                                                anchors.leftMargin: 10
+                                                                anchors.rightMargin: 10
+                                                                spacing: 8
+
+                                                                Text {
+                                                                    anchors.verticalCenter: parent.verticalCenter
+                                                                    text: isSelected ? "󰄬" : " "
+                                                                    color: Theme.accent
+                                                                    font.family: Theme.fontFamily
+                                                                    font.pixelSize: 13
+                                                                }
+
+                                                                Text {
+                                                                    anchors.verticalCenter: parent.verticalCenter
+                                                                    text: modelData
+                                                                    color: isSelected ? Theme.accent : Theme.fg
+                                                                    font.family: Theme.fontFamily
+                                                                    font.pixelSize: 12
+                                                                    font.bold: isSelected
+                                                                }
+                                                            }
+
+                                                            MouseArea {
+                                                                id: resItemMenuMa
+                                                                anchors.fill: parent
+                                                                hoverEnabled: true
+                                                                cursorShape: Qt.PointingHandCursor
+                                                                onClicked: {
+                                                                    root.setResolution(modelData)
+                                                                    root.resDropdownOpen = false
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }

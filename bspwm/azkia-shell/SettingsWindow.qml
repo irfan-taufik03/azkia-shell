@@ -2857,7 +2857,7 @@ Process {
                                     }
 
                                     Text {
-                                        text: "Adjust global display scale factor (KDE Plasma style):"
+                                        text: "Adjust global desktop scaling percentage:"
                                         color: Qt.alpha(Theme.fg, 0.6)
                                         font.family: Theme.fontFamily
                                         font.pixelSize: 12

@@ -3,6 +3,32 @@ import sys
 import subprocess
 import json
 import re
+import os
+
+XRESOURCES_PATH = os.path.expanduser("~/.Xresources")
+
+def get_current_dpi():
+    try:
+        proc = subprocess.run(['xrdb', '-query'], capture_output=True, text=True)
+        if proc.returncode == 0:
+            for line in proc.stdout.splitlines():
+                if 'Xft.dpi' in line:
+                    parts = line.split(':')
+                    if len(parts) >= 2:
+                        return int(parts[1].strip())
+    except Exception:
+        pass
+    return 96
+
+def dpi_to_scale_str(dpi):
+    if dpi >= 140:
+        return "150%"
+    elif dpi >= 118:
+        return "125%"
+    elif dpi >= 105:
+        return "115%"
+    else:
+        return "100%"
 
 def get_display_info():
     try:
@@ -19,8 +45,6 @@ def get_display_info():
         active_mode_map = {}
 
         for line in lines:
-            # Match line: "eDP-1 connected primary 1920x1080+0+0 normal ..."
-            # or "HDMI-1 connected 1920x1080+1920+0 left ..."
             m = re.match(r'^([A-Za-z0-9\-\_]+)\s+connected\s+(primary\s+)?(?:\d+x\d+\+\d+\+\d+\s+)?(normal|left|right|inverted)?', line)
             if m:
                 mon_name = m.group(1)
@@ -35,7 +59,6 @@ def get_display_info():
                 continue
 
             if current_mon:
-                # Mode line: "   1920x1080     60.00*+  59.97  "
                 mode_m = re.match(r'^\s+(\d+x\d+)\s+(.*)', line)
                 if mode_m:
                     mode_str = mode_m.group(1)
@@ -49,13 +72,17 @@ def get_display_info():
         supported_modes = modes_map.get(active_mon, [])
         active_mode = active_mode_map.get(active_mon, supported_modes[0] if supported_modes else "1920x1080")
 
+        current_dpi = get_current_dpi()
+        current_scale = dpi_to_scale_str(current_dpi)
+
         return {
             "monitors": monitors,
             "primary": active_mon,
             "rotation": rotation_map.get(active_mon, "normal"),
             "supported_modes": supported_modes,
             "current_mode": active_mode,
-            "current_scale": "100%"
+            "current_scale": current_scale,
+            "current_dpi": current_dpi
         }
     except Exception as e:
         return {"error": str(e)}
@@ -74,18 +101,41 @@ def set_rotation(output, rotation):
     except Exception as e:
         return {"error": str(e)}
 
-def set_scale(output, scale_str):
-    # Scale values: 100%, 115%, 125%, 150%
-    scale_map = {
-        "100%": "1x1",
-        "115%": "0.87x0.87",
-        "125%": "0.8x0.8",
-        "150%": "0.67x0.67"
-    }
-    scale_val = scale_map.get(scale_str, "1x1")
+def update_xresources_dpi(dpi):
     try:
-        proc = subprocess.run(['xrandr', '--output', output, '--scale', scale_val], capture_output=True, text=True)
-        return {"success": proc.returncode == 0, "output": proc.stdout or proc.stderr}
+        lines = []
+        if os.path.exists(XRESOURCES_PATH):
+            with open(XRESOURCES_PATH, 'r') as f:
+                lines = f.readlines()
+        
+        new_lines = [l for l in lines if not l.strip().startswith('Xft.dpi:')]
+        new_lines.append(f"Xft.dpi: {dpi}\n")
+
+        with open(XRESOURCES_PATH, 'w') as f:
+            f.writelines(new_lines)
+    except Exception as e:
+        pass
+
+def set_scale(output, scale_str):
+    dpi_map = {
+        "100%": 96,
+        "115%": 110,
+        "125%": 120,
+        "150%": 144
+    }
+    dpi = dpi_map.get(scale_str, 96)
+
+    try:
+        # 1. Reset xrandr canvas scaling to 1x1 with bilinear filter to prevent raster blur
+        subprocess.run(['xrandr', '--output', output, '--scale', '1x1', '--filter', 'bilinear'], capture_output=True, text=True)
+        
+        # 2. Merge Xft.dpi into active X server resource manager (Vector DPI Scaling - Crisp & Sharp!)
+        proc = subprocess.run(['xrdb', '-merge'], input=f"Xft.dpi: {dpi}\n", text=True, capture_output=True)
+
+        # 3. Save to ~/.Xresources for persistence
+        update_xresources_dpi(dpi)
+
+        return {"success": True, "scale": scale_str, "dpi": dpi}
     except Exception as e:
         return {"error": str(e)}
 
@@ -100,7 +150,7 @@ def main():
     elif arg == "--set-resolution" and len(sys.argv) >= 4:
         print(json.dumps(set_resolution(sys.argv[2], sys.argv[3])))
     elif arg == "--set-rotation" and len(sys.argv) >= 4:
-        print(json.dumps(set_rotation(sys.argv[2], sys.argv[3])))
+        print(json.argv if len(sys.argv) < 4 else json.dumps(set_rotation(sys.argv[2], sys.argv[3])))
     elif arg == "--set-scale" and len(sys.argv) >= 4:
         print(json.dumps(set_scale(sys.argv[2], sys.argv[3])))
     else:

@@ -106,7 +106,7 @@ install_debian() {
     $SUDO_CMD apt update -y
 
     PACKAGES=(
-        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty fastfetch
+        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty xfce4-terminal xterm fastfetch git
         quickshell xclip xdotool x11-utils x11-xserver-utils pamixer playerctl wireplumber pipewire-audio
         brightnessctl upower power-profiles-daemon bluez bluez-tools bluez-obexd libspa-0.2-bluetooth network-manager
         python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 libx11-6 libxss1
@@ -134,7 +134,7 @@ install_arch() {
     log_info "Installing packages for Arch Linux..."
 
     PACKAGES=(
-        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxsession xfce4-power-manager kitty fastfetch
+        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxsession xfce4-power-manager kitty xfce4-terminal xterm fastfetch git
         xclip xdotool xorg-xprop xorg-xset xorg-xrandr xorg-xsetroot pamixer playerctl wireplumber pipewire-pulse
         brightnessctl upower power-profiles-daemon bluez bluez-utils networkmanager
         python python-gobject gtk3 libx11 libxss
@@ -168,7 +168,7 @@ install_fedora() {
     $SUDO_CMD dnf copr enable -y avengemedia/danklinux 2>/dev/null || true
 
     PACKAGES=(
-        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty fastfetch
+        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty xfce4-terminal xterm fastfetch git
         xclip xdotool xprop xset xrandr xsetroot pamixer playerctl wireplumber pipewire pipewire-plugin-spa-bluetooth
         brightnessctl upower power-profiles-daemon bluez bluez-tools NetworkManager
         python3 python3-gobject gtk3 libX11 libXScrnSaver
@@ -202,9 +202,40 @@ install_dependencies() {
     log_success "All system dependencies installed successfully!"
 }
 
+prepare_source_dir() {
+    if [ -z "$SCRIPT_DIR" ]; then
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+    fi
+
+    if [ ! -d "$SCRIPT_DIR/bspwm" ]; then
+        log_info "Source repository directory not found at $SCRIPT_DIR/bspwm."
+        log_info "Cloning azkia-shell repository automatically..."
+
+        if ! command -v git &>/dev/null; then
+            log_info "Installing git..."
+            case "$DISTRO_TYPE" in
+                debian)
+                    $SUDO_CMD apt update -y && $SUDO_CMD apt install -y git
+                    ;;
+                arch)
+                    $SUDO_CMD pacman -S --needed --noconfirm git
+                    ;;
+                fedora)
+                    $SUDO_CMD dnf install -y git
+                    ;;
+            esac
+        fi
+
+        TEMP_REPO_DIR=$(mktemp -d)
+        log_info "Cloning repository to $TEMP_REPO_DIR..."
+        git clone https://github.com/irfan-taufik03/azkia-shell.git "$TEMP_REPO_DIR"
+        SCRIPT_DIR="$TEMP_REPO_DIR"
+        trap 'rm -rf "$TEMP_REPO_DIR"' EXIT
+    fi
+}
+
 deploy_config() {
     TARGET_DIR="$HOME/.config/bspwm"
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
     log_info "Deploying BSPWM and Azkia Shell configuration..."
 
@@ -264,13 +295,27 @@ deploy_config() {
         sed -i "s|/home/[^/]*|$HOME|g" "$FASTFETCH_CONF"
     fi
 
+    # Create default ~/.fehbg wallpaper script if not present
+    if [ ! -f "$HOME/.fehbg" ] && [ -f "$TARGET_DIR/wallpapers/Default.png" ]; then
+        log_info "Creating default ~/.fehbg wallpaper script..."
+        echo '#!/bin/sh' > "$HOME/.fehbg"
+        echo "feh --no-fehbg --bg-fill '$TARGET_DIR/wallpapers/Default.png'" >> "$HOME/.fehbg"
+        chmod +x "$HOME/.fehbg"
+    fi
+
+    # Create helper symlink for qs -> quickshell in ~/.local/bin if needed
+    mkdir -p "$HOME/.local/bin"
+    if command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
+        log_info "Creating helper symlink for qs -> quickshell..."
+        ln -sf "$(command -v quickshell)" "$HOME/.local/bin/qs"
+    fi
+
     log_success "Configuration deployed to $TARGET_DIR successfully!"
 }
 
 deploy_fonts() {
     log_info "Deploying custom fonts to ~/.local/share/fonts/..."
     FONT_TARGET="$HOME/.local/share/fonts"
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
     mkdir -p "$FONT_TARGET"
 
@@ -287,7 +332,6 @@ deploy_fonts() {
 
 setup_gtk_theme() {
     log_info "Deploying and applying Nordic-darker GTK theme and Sweet-cursors cursor..."
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
     # Create target theme & icon directories
     mkdir -p "$HOME/.themes" "$HOME/.icons" "$HOME/.local/share/themes" "$HOME/.local/share/icons"
@@ -469,6 +513,7 @@ main() {
     check_root_or_sudo
     detect_distro
     install_dependencies
+    prepare_source_dir
     deploy_config
     deploy_fonts
     setup_gtk_theme

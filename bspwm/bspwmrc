@@ -41,11 +41,22 @@ sxhkd -c ~/.config/bspwm/sxhkdrc &
 
 xfce4-power-manager &
 
-xsetroot -cursor_name left_ptr
+# Set PATH to include local user binaries
+export PATH="$HOME/.local/bin:$PATH"
 
-# Restore desktop wallpaper
-[ -f ~/.fehbg ] && ~/.fehbg &
+# Restore desktop wallpaper with fallback to default wallpaper
+if [ -f ~/.fehbg ]; then
+    ~/.fehbg &
+elif [ -f ~/.config/bspwm/wallpapers/Default.png ]; then
+    feh --bg-fill ~/.config/bspwm/wallpapers/Default.png &
+fi
 
 picom --config ~/.config/bspwm/picom.conf &
 
-qs -p ~/.config/bspwm/azkia-shell -d -n >/dev/null 2>&1 &
+# Launch Quickshell panel with qs / quickshell binary detection
+if command -v qs &>/dev/null; then
+    qs -p ~/.config/bspwm/azkia-shell -d -n > ~/.config/bspwm/quickshell.log 2>&1 &
+elif command -v quickshell &>/dev/null; then
+    quickshell -p ~/.config/bspwm/azkia-shell -d -n > ~/.config/bspwm/quickshell.log 2>&1 &
+fi
+

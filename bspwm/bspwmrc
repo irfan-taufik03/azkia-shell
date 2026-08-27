@@ -53,7 +53,12 @@ elif [ -f ~/.config/bspwm/wallpapers/Default.png ]; then
     feh --bg-fill ~/.config/bspwm/wallpapers/Default.png &
 fi
 
-picom --config ~/.config/bspwm/picom.conf &
+# Launch picom with automatic VM / software renderer detection (xrender for VM, glx for hardware GPU)
+if (command -v systemd-detect-virt &>/dev/null && [ "$(systemd-detect-virt 2>/dev/null)" != "none" ]) || (command -v glxinfo &>/dev/null && glxinfo 2>/dev/null | grep -qi "llvmpipe\|softpipe\|swrast"); then
+    picom --config ~/.config/bspwm/picom.conf --backend xrender &
+else
+    picom --config ~/.config/bspwm/picom.conf --backend glx &
+fi
 
 # Launch Quickshell panel with qs / quickshell binary detection
 if command -v qs &>/dev/null; then

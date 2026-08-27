@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="azkia-shell/assets/azkia-shell-logo.svg" alt="Azkia Shell Logo" width="180">
+  <img src="bspwm/azkia-shell/assets/azkia-shell-logo.svg" alt="Azkia Shell Logo" width="180">
 </p>
 
 <h1 align="center">Azkia Shell & BSPWM Installer</h1>

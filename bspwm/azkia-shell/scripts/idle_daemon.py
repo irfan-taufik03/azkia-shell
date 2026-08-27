@@ -4,6 +4,7 @@ import os
 import subprocess
 import json
 import ctypes
+import shutil
 
 STATE_FILE = "/tmp/azkia_lock_state"
 
@@ -28,13 +29,19 @@ except Exception:
     has_x11 = False
 
 def get_idle_sec():
-    if not has_x11 or not display:
-        return 0
+    if has_x11 and display:
+        try:
+            xss.XScreenSaverQueryInfo(display, root_win, ctypes.byref(info))
+            return info.idle / 1000.0
+        except Exception:
+            pass
     try:
-        xss.XScreenSaverQueryInfo(display, root_win, ctypes.byref(info))
-        return info.idle / 1000.0
+        res = subprocess.run(['xprintidle'], capture_output=True, text=True)
+        if res.returncode == 0 and res.stdout.strip().isdigit():
+            return int(res.stdout.strip()) / 1000.0
     except Exception:
-        return 0
+        pass
+    return 0
 
 def is_sys_locked():
     if os.path.exists(STATE_FILE):
@@ -65,13 +72,14 @@ def load_settings():
 
 def lock_screen():
     shell_dir = os.path.expanduser("~/.config/bspwm/azkia-shell")
-    subprocess.run(["qs", "ipc", "-p", shell_dir, "call", "lockscreen", "lock"], stderr=subprocess.DEVNULL)
+    cmd = shutil.which("qs") or shutil.which("quickshell") or "qs"
+    subprocess.run([cmd, "ipc", "-p", shell_dir, "call", "lockscreen", "lock"], stderr=subprocess.DEVNULL)
 
 def screen_off():
     subprocess.run(["xset", "dpms", "force", "off"], stderr=subprocess.DEVNULL)
 
 def is_media_or_call_active():
-    """Inhibits auto-lock if fullscreen window, PipeWire audio/video stream, or Zoom is active."""
+    """Inhibits auto-lock if fullscreen window, active MPRIS media playback, or meeting call is active."""
     # 1. Check if any window is in fullscreen mode on the active desktop
     try:
         res = subprocess.run(['bspc', 'query', '-N', '-n', '.fullscreen.local'], capture_output=True, text=True)
@@ -80,11 +88,20 @@ def is_media_or_call_active():
     except Exception:
         pass
 
-    # 2. Check PipeWire running audio/video streams via pw-dump
+    # 2. Check if playerctl reports media is currently Playing (e.g. Spotify, YouTube, MPV, VLC)
+    try:
+        res = subprocess.run(['playerctl', 'status'], capture_output=True, text=True)
+        if res.returncode == 0 and 'Playing' in res.stdout:
+            return True
+    except Exception:
+        pass
+
+    # 3. Check PipeWire active streams, explicitly ignoring CAVA, Quickshell, Python, and system processes
     try:
         proc = subprocess.run(['pw-dump'], capture_output=True, text=True)
         if proc.returncode == 0 and proc.stdout:
             data = json.loads(proc.stdout)
+            ignored_apps = ['quickshell', 'cava', 'python', 'python3', 'wireplumber', 'pipewire', 'pw-dump']
             for item in data:
                 if item.get('type') == 'PipeWire:Interface:Node':
                     info = item.get('info', {})
@@ -93,14 +110,14 @@ def is_media_or_call_active():
                     media_class = props.get('media.class', '')
                     app_name = (props.get('application.name') or props.get('node.name') or '').lower()
 
-                    if state == 'running' and 'quickshell' not in app_name:
+                    if state == 'running' and not any(ign in app_name for ign in ignored_apps):
                         if media_class in ['Stream/Output/Audio', 'Stream/Input/Audio', 'Stream/Input/Video', 'Stream/Output/Video']:
                             return True
     except Exception:
         pass
 
-    # 3. Check for Zoom or meeting processes
-    meeting_apps = ['zoom', 'zoom.real', 'teams', 'skype', 'webex']
+    # 4. Check for Zoom, Teams, Skype, Webex, Discord meeting processes
+    meeting_apps = ['zoom', 'zoom.real', 'teams', 'skype', 'webex', 'discord']
     for app in meeting_apps:
         try:
             p = subprocess.run(['pgrep', '-x', app], capture_output=True, text=True)
@@ -131,7 +148,7 @@ def main():
             screen_is_off = False
             continue
 
-        # Inhibit lockscreen if media, Zoom, or fullscreen window is active
+        # Inhibit lockscreen if media playback, Zoom call, or fullscreen window is active
         if is_media_or_call_active():
             locked_start_time = None
             screen_is_off = False
@@ -143,7 +160,7 @@ def main():
 
         sys_locked = is_sys_locked()
 
-        # Trigger 1: Auto Lock after inactivity for >= auto_lock_time (default 180s = 3m)
+        # Trigger 1: Auto Lock after inactivity for >= auto_lock_time
         if idle_sec >= auto_lock_time and not sys_locked:
             lock_screen()
             sys_locked = True
@@ -153,7 +170,7 @@ def main():
             if locked_start_time is None:
                 locked_start_time = time.time()
 
-            # Trigger 2: Auto Sleep after screen has been locked for >= auto_sleep_time (default 120s = 2m)
+            # Trigger 2: Auto Sleep after screen has been locked for >= auto_sleep_time
             time_locked = time.time() - locked_start_time
             if time_locked >= auto_sleep_time and not screen_is_off:
                 screen_off()

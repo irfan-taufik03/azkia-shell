@@ -152,15 +152,20 @@ install_debian() {
         # For Debian 13 / testing / trixie
         if ! apt-cache show quickshell &>/dev/null; then
             log_info "Adding DankLinux repository for Debian..."
-            $SUDO_CMD mkdir -p /etc/apt/keyrings
+            $SUDO_CMD mkdir -p /etc/apt/keyrings /etc/apt/trusted.gpg.d
             if ! [ -f /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list ]; then
+                curl -fsSL "https://download.opensuse.org/repositories/home:/AvengeMedia:/danklinux/Debian_13/Release.key" | $SUDO_CMD tee /etc/apt/trusted.gpg.d/home-AvengeMedia-danklinux.asc >/dev/null 2>/dev/null || true
                 curl -fsSL "https://download.opensuse.org/repositories/home:/AvengeMedia:/danklinux/Debian_13/Release.key" | $SUDO_CMD gpg --dearmor -o /etc/apt/keyrings/home-AvengeMedia-danklinux.gpg 2>/dev/null || true
                 echo "deb [signed-by=/etc/apt/keyrings/home-AvengeMedia-danklinux.gpg arch=amd64] https://download.opensuse.org/repositories/home:/AvengeMedia:/danklinux/Debian_13/ /" | $SUDO_CMD tee /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list >/dev/null
             fi
         fi
     fi
 
-    $SUDO_CMD apt update -y
+    if ! $SUDO_CMD apt update -y; then
+        log_warn "APT update encountered repository errors. Cleaning up invalid repository definitions..."
+        $SUDO_CMD rm -f /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list /etc/apt/trusted.gpg.d/home-AvengeMedia-danklinux.asc /etc/apt/keyrings/home-AvengeMedia-danklinux.gpg 2>/dev/null || true
+        $SUDO_CMD apt update -y || true
+    fi
 
     # Core system packages (excluding quickshell to prevent apt batch transaction failure)
     PACKAGES=(

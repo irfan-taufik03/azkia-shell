@@ -111,7 +111,7 @@ super + shift + s
 	flameshot screen
 
 super + Return
-	wezterm
+	kitty
 
 super + h
     ~/.config/bspwm/scripts/toggle-hidden.sh

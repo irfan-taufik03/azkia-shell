@@ -1,0 +1,93 @@
+{
+  "display": {
+    "key": {
+      "width": 15
+    },
+    "size": {
+      "binaryPrefix": "jedec"
+    },
+    "separator": ""
+  },
+  "logo": {
+    "type": "kitty-direct",
+    "source": "~/.config/fastfetch/azkia-shell-logo.png",
+    "width": 26,
+    "height": 13
+  },
+  "modules": [
+    "break",
+    {
+      "type": "os",
+      "key": " OS",
+      "keyColor": "magenta",
+      "format": "{name}"
+    },
+    {
+      "type": "kernel",
+      "key": " Kernel",
+      "keyColor": "yellow"
+    },
+    {
+      "type": "packages",
+      "key": " Packages",
+      "keyColor": "blue"
+    },
+    {
+      "type": "shell",
+      "key": " Shell",
+      "keyColor": "green",
+      "format": "{pretty-name}"
+    },
+	{
+      "type": "terminal",
+      "key": " Terminal",
+      "keyColor": "red",
+      "format": "{pretty-name}"
+    },
+    {
+      "type": "wm",
+      "key": " WM",
+      "keyColor": "cyan",
+      "format": "{pretty-name}"
+    },
+    {
+      "type": "host",
+      "key": " Host",
+      "keyColor": "magenta"
+    },
+    {
+      "type": "cpu",
+      "key": " CPU",
+      "keyColor": "yellow",
+      "format": "{name}"
+    },
+    {
+      "type": "memory",
+      "key": " RAM",
+      "keyColor": "blue",
+      "format": "{used} / {total}"
+    },
+	{
+      "type": "swap",
+      "key": " ZRam",
+      "keyColor": "green",
+      "format": "{used} / {total}"
+    },
+    {
+      "type": "uptime",
+      "key": "󰔚 Uptime",
+      "keyColor": "red"
+    },
+	{
+      "type": "command",
+      "key": " Age",
+      "keyColor": "cyan",
+      "text": "echo \"$(( ($(date +%s) - $(stat -c %W /)) / 86400 )) days\""
+    },
+    "break",
+    {
+      "type": "custom",
+      "format": "\u001b[33m󰮯 \u001b[32m󰊠 \u001b[34m󰊠 \u001b[31m󰊠 \u001b[36m󰊠 \u001b[35m󰊠 \u001b[37m󰊠 \u001b[97m󰊠"
+    }
+  ]
+}

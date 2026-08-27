@@ -103,31 +103,43 @@ install_debian() {
         fi
     fi
 
+    $SUDO_CMD apt update -y
+
     PACKAGES=(
-        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager wezterm
+        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty fastfetch
         quickshell xclip xdotool x11-utils x11-xserver-utils pamixer playerctl wireplumber pipewire-audio
         brightnessctl upower power-profiles-daemon bluez bluez-tools bluez-obexd libspa-0.2-bluetooth network-manager
         python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 libx11-6 libxss1
         libqt6qml6 libqt6quick6 libqt6quickcontrols2-6 libqt6svg6 qml6-module-qtquick-controls
         qml6-module-qtquick-layouts qml6-module-qtquick-templates qml6-module-qtquick-shapes
         qml6-module-qtquick-window qml6-module-qtsvg qt6-gtk-platformtheme qt6-style-kvantum qt6ct
-        fonts-font-awesome fonts-noto-color-emoji fonts-inter fonts-roboto
+        fonts-font-awesome fonts-noto-color-emoji fonts-inter fonts-roboto fonts-jetbrains-mono
     )
 
-    $SUDO_CMD apt update -y
-    $SUDO_CMD apt install -y "${PACKAGES[@]}"
+    VALID_PACKAGES=()
+    for pkg in "${PACKAGES[@]}"; do
+        if apt-cache show "$pkg" &>/dev/null; then
+            VALID_PACKAGES+=("$pkg")
+        else
+            log_warn "Package '$pkg' is not available in APT repositories. Skipping..."
+        fi
+    done
+
+    if [ ${#VALID_PACKAGES[@]} -gt 0 ]; then
+        $SUDO_CMD apt install -y "${VALID_PACKAGES[@]}"
+    fi
 }
 
 install_arch() {
     log_info "Installing packages for Arch Linux..."
 
     PACKAGES=(
-        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxsession xfce4-power-manager wezterm
+        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxsession xfce4-power-manager kitty fastfetch
         xclip xdotool xorg-xprop xorg-xset xorg-xrandr xorg-xsetroot pamixer playerctl wireplumber pipewire-pulse
         brightnessctl upower power-profiles-daemon bluez bluez-utils networkmanager
         python python-gobject gtk3 libx11 libxss
         qt6-declarative qt6-svg qt6-5compat kvantum qt6ct
-        ttf-font-awesome noto-fonts-emoji inter-font ttf-roboto
+        ttf-font-awesome noto-fonts-emoji inter-font ttf-roboto ttf-jetbrains-mono
     )
 
     $SUDO_CMD pacman -S --needed --noconfirm "${PACKAGES[@]}"
@@ -156,12 +168,12 @@ install_fedora() {
     $SUDO_CMD dnf copr enable -y avengemedia/danklinux 2>/dev/null || true
 
     PACKAGES=(
-        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager wezterm
+        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty fastfetch
         xclip xdotool xprop xset xrandr xsetroot pamixer playerctl wireplumber pipewire pipewire-plugin-spa-bluetooth
         brightnessctl upower power-profiles-daemon bluez bluez-tools NetworkManager
         python3 python3-gobject gtk3 libX11 libXScrnSaver
         qt6-qtdeclarative qt6-qtsvg qt6-qt5compat kvantum-qt6 qt6ct
-        fontawesome-fonts google-noto-emoji-fonts google-roboto-fonts
+        fontawesome-fonts google-noto-emoji-fonts google-roboto-fonts jetbrains-mono-fonts
     )
 
     $SUDO_CMD dnf install -y "${PACKAGES[@]}"
@@ -206,17 +218,14 @@ deploy_config() {
     # Create target directory
     mkdir -p "$TARGET_DIR"
 
-    # Copy files from repository to ~/.config/bspwm
-    cp -r "$SCRIPT_DIR/azkia-shell" "$TARGET_DIR/"
-    cp -r "$SCRIPT_DIR/scripts" "$TARGET_DIR/"
-    cp -r "$SCRIPT_DIR/wallpapers" "$TARGET_DIR/"
-    cp "$SCRIPT_DIR/bspwmrc" "$TARGET_DIR/"
-    cp "$SCRIPT_DIR/bspwmrc.default" "$TARGET_DIR/"
-    cp "$SCRIPT_DIR/sxhkdrc" "$TARGET_DIR/"
-    cp "$SCRIPT_DIR/sxhkdrc.default" "$TARGET_DIR/"
-    cp "$SCRIPT_DIR/picom.conf" "$TARGET_DIR/"
-    [ -d "$SCRIPT_DIR/themes" ] && cp -r "$SCRIPT_DIR/themes" "$TARGET_DIR/"
-    [ -d "$SCRIPT_DIR/icons" ] && cp -r "$SCRIPT_DIR/icons" "$TARGET_DIR/"
+    # Copy files from repository bspwm/ directory to ~/.config/bspwm
+    SRC_DIR="$SCRIPT_DIR/bspwm"
+    if [ -d "$SRC_DIR" ]; then
+        cp -r "$SRC_DIR"/* "$TARGET_DIR/"
+    else
+        log_error "Source bspwm directory not found at $SRC_DIR!"
+        exit 1
+    fi
 
     # Replace hardcoded home paths in appearance.json with current user's $HOME
     APPEARANCE_FILE="$TARGET_DIR/azkia-shell/appearance.json"
@@ -233,7 +242,47 @@ deploy_config() {
     chmod +x "$TARGET_DIR/azkia-shell/scripts/"*.py 2>/dev/null || true
     chmod +x "$TARGET_DIR/azkia-shell/scripts/"*.sh 2>/dev/null || true
 
+    # Deploy Kitty configuration to ~/.config/kitty/
+    KITTY_TARGET="$HOME/.config/kitty"
+    mkdir -p "$KITTY_TARGET"
+    if [ -d "$SCRIPT_DIR/kitty" ]; then
+        cp -r "$SCRIPT_DIR/kitty"/* "$KITTY_TARGET/"
+        log_info "Deployed Kitty configuration to $KITTY_TARGET/kitty.conf"
+    fi
+
+    # Deploy Fastfetch configuration to ~/.config/fastfetch/
+    FASTFETCH_TARGET="$HOME/.config/fastfetch"
+    mkdir -p "$FASTFETCH_TARGET"
+    if [ -d "$SCRIPT_DIR/fastfetch" ]; then
+        cp -r "$SCRIPT_DIR/fastfetch"/* "$FASTFETCH_TARGET/"
+        log_info "Deployed Fastfetch configuration to $FASTFETCH_TARGET/"
+    fi
+
+    # Replace hardcoded home paths in fastfetch config.jsonc
+    FASTFETCH_CONF="$FASTFETCH_TARGET/config.jsonc"
+    if [ -f "$FASTFETCH_CONF" ]; then
+        sed -i "s|/home/[^/]*|$HOME|g" "$FASTFETCH_CONF"
+    fi
+
     log_success "Configuration deployed to $TARGET_DIR successfully!"
+}
+
+deploy_fonts() {
+    log_info "Deploying custom fonts to ~/.local/share/fonts/..."
+    FONT_TARGET="$HOME/.local/share/fonts"
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    mkdir -p "$FONT_TARGET"
+
+    if [ -d "$SCRIPT_DIR/fonts" ]; then
+        cp -r "$SCRIPT_DIR/fonts"/* "$FONT_TARGET/"
+        log_success "Copied custom font files (Ubuntu Nerd Font, JetBrainsMono Nerd Font, FontAwesome, NotoColorEmoji) to $FONT_TARGET/"
+    fi
+
+    if command -v fc-cache &>/dev/null; then
+        log_info "Updating font cache with fc-cache -f..."
+        fc-cache -f "$FONT_TARGET" 2>/dev/null || true
+    fi
 }
 
 setup_gtk_theme() {
@@ -331,6 +380,43 @@ EOF"
     fi
 }
 
+setup_display_manager() {
+    log_info "Checking for an existing Display Manager (LightDM, GDM, SDDM, Ly, LXDM)..."
+
+    if command -v lightdm &>/dev/null || \
+       command -v gdm &>/dev/null || \
+       command -v gdm3 &>/dev/null || \
+       command -v sddm &>/dev/null || \
+       command -v ly &>/dev/null || \
+       command -v lxdm &>/dev/null || \
+       systemctl is-enabled display-manager &>/dev/null 2>/dev/null; then
+        log_success "Display Manager is already installed and configured."
+        return 0
+    fi
+
+    log_warn "No Display Manager detected! Installing LightDM as default login manager..."
+
+    case "$DISTRO_TYPE" in
+        debian)
+            $SUDO_CMD apt install -y lightdm lightdm-gtk-greeter 2>/dev/null || $SUDO_CMD apt install -y lightdm
+            ;;
+        arch)
+            $SUDO_CMD pacman -S --needed --noconfirm lightdm lightdm-gtk-greeter
+            ;;
+        fedora)
+            $SUDO_CMD dnf install -y lightdm lightdm-gtk-greeter
+            ;;
+    esac
+
+    if command -v systemctl &>/dev/null; then
+        log_info "Enabling LightDM system service..."
+        $SUDO_CMD systemctl enable lightdm 2>/dev/null || true
+        $SUDO_CMD systemctl set-default graphical.target 2>/dev/null || true
+    fi
+
+    log_success "LightDM Display Manager installed and enabled successfully!"
+}
+
 enable_services() {
     log_info "Enabling and starting system services (Bluetooth & NetworkManager)..."
     $SUDO_CMD systemctl enable --now bluetooth 2>/dev/null || true
@@ -343,7 +429,7 @@ verify_installation() {
     log_info "Verifying installed components..."
 
     ERRORS=0
-    for cmd in bspwm sxhkd picom feh python3 pamixer brightnessctl playerctl bluetoothctl nmcli wezterm; do
+    for cmd in bspwm sxhkd picom feh python3 pamixer brightnessctl playerctl bluetoothctl nmcli kitty fastfetch; do
         if command -v "$cmd" &>/dev/null; then
             echo -e "  [${GREEN}OK${NC}] Command '$cmd' is available."
         else
@@ -384,8 +470,10 @@ main() {
     detect_distro
     install_dependencies
     deploy_config
+    deploy_fonts
     setup_gtk_theme
     setup_xsessions
+    setup_display_manager
     enable_services
     verify_installation
 }

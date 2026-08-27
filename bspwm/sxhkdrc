@@ -111,7 +111,7 @@ super + shift + s
 	flameshot screen
 
 super + Return
-	kitty
+	~/.config/bspwm/scripts/open-terminal.sh
 
 super + h
     ~/.config/bspwm/scripts/toggle-hidden.sh

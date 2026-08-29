@@ -89,9 +89,11 @@ build_quickshell_from_source() {
 
     log_info "Installing build dependencies for Quickshell..."
     $SUDO_CMD apt install -y cmake ninja-build build-essential \
-        qt6-base-dev qt6-declarative-dev qt6-wayland libwayland-dev \
-        wayland-protocols libpipewire-0.3-dev libdbus-1-dev \
-        libxkbcommon-dev pkg-config libqt6svg6-dev 2>/dev/null || true
+        qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools \
+        qt6-shadertools-dev libqt6shadertools6-dev \
+        qt6-wayland libwayland-dev wayland-protocols libpipewire-0.3-dev libdbus-1-dev \
+        libxkbcommon-dev pkg-config libqt6svg6-dev qml6-module-qtquick-effects \
+        qml6-module-qtshadertools qml6-module-qtquick-templates 2>/dev/null || true
 
     REAL_USER="${SUDO_USER:-$USER}"
     BUILD_DIR=$(mktemp -d)
@@ -138,14 +140,18 @@ install_debian() {
         log_info "Cleaning up obsolete DankLinux repository definitions..."
         $SUDO_CMD rm -f /etc/apt/sources.list.d/*danklinux*.list /etc/apt/keyrings/*danklinux*.gpg 2>/dev/null || true
 
-        # Add DankLinux PPA for Ubuntu/Mint
-        if ! apt-cache show quickshell &>/dev/null; then
-            log_info "Adding DankLinux PPA for Ubuntu/Mint..."
-            if ! command -v add-apt-repository &>/dev/null; then
-                $SUDO_CMD apt update -y && $SUDO_CMD apt install -y software-properties-common 2>/dev/null || true
-            fi
-            if command -v add-apt-repository &>/dev/null; then
+        # Add PPAs for Ubuntu/Mint (DankLinux for Quickshell & zhangsongcui3371 for Fastfetch)
+        if ! command -v add-apt-repository &>/dev/null; then
+            $SUDO_CMD apt update -y && $SUDO_CMD apt install -y software-properties-common 2>/dev/null || true
+        fi
+        if command -v add-apt-repository &>/dev/null; then
+            if ! apt-cache show quickshell &>/dev/null; then
+                log_info "Adding DankLinux PPA for Ubuntu/Mint..."
                 $SUDO_CMD add-apt-repository -y ppa:avengemedia/danklinux 2>/dev/null || true
+            fi
+            if ! apt-cache show fastfetch &>/dev/null; then
+                log_info "Adding Fastfetch PPA (ppa:zhangsongcui3371/fastfetch) for Ubuntu/Mint..."
+                $SUDO_CMD add-apt-repository -y ppa:zhangsongcui3371/fastfetch 2>/dev/null || true
             fi
         fi
     else
@@ -191,6 +197,17 @@ install_debian() {
     if [ ${#VALID_PACKAGES[@]} -gt 0 ]; then
         log_info "Installing core system packages..."
         $SUDO_CMD apt install -y "${VALID_PACKAGES[@]}"
+    fi
+
+    # Fallback Fastfetch installation if not present via APT
+    if ! command -v fastfetch &>/dev/null; then
+        log_info "Fastfetch package is not present via APT. Installing standalone fastfetch deb package..."
+        FASTFETCH_DEB=$(mktemp --suffix=.deb)
+        if curl -fsSL "https://github.com/fastfetch-cli/fastfetch/releases/latest/download/fastfetch-linux-amd64.deb" -o "$FASTFETCH_DEB"; then
+            $SUDO_CMD dpkg -i "$FASTFETCH_DEB" 2>/dev/null || $SUDO_CMD apt install -f -y 2>/dev/null || true
+            log_success "Fastfetch installed successfully via standalone deb package!"
+        fi
+        rm -f "$FASTFETCH_DEB" 2>/dev/null || true
     fi
 
     # Install Quickshell in an isolated step

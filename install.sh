@@ -88,27 +88,10 @@ build_quickshell_from_source() {
     log_info "Building Quickshell automatically from source..."
 
     log_info "Installing build dependencies for Quickshell..."
-    BUILD_PACKAGES=(
-        cmake ninja-build build-essential pkg-config libcli11-dev
-        qt6-base-dev qt6-declarative-dev qt6-shadertools-dev qt6-wayland-dev qt6-wayland
-        libwayland-dev wayland-protocols libpipewire-0.3-dev libdbus-1-dev
-        libxkbcommon-dev libqt6svg6-dev qt6-svg-dev
-        qml6-module-qtquick-effects qml6-module-qtquick-templates
-    )
-
-    VALID_BUILD_PKGS=()
-    for pkg in "${BUILD_PACKAGES[@]}"; do
-        if apt-cache show "$pkg" &>/dev/null; then
-            VALID_BUILD_PKGS+=("$pkg")
-        fi
-    done
-
-    if [ ${#VALID_BUILD_PKGS[@]} -gt 0 ]; then
-        $SUDO_CMD apt install -y "${VALID_BUILD_PKGS[@]}"
-    fi
-
-    # Explicitly ensure dev packages for CLI11, Qt6 Wayland, and ShaderTools are installed
-    $SUDO_CMD apt install -y libcli11-dev qt6-wayland-dev qt6-shadertools-dev qt6-base-dev qt6-declarative-dev 2>/dev/null || true
+    $SUDO_CMD apt install -y cmake ninja-build build-essential \
+        qt6-base-dev qt6-declarative-dev \
+        qt6-wayland-dev libwayland-dev wayland-protocols libpipewire-0.3-dev libdbus-1-dev \
+        libxkbcommon-dev pkg-config libqt6svg6-dev 2>/dev/null || true
 
     REAL_USER="${SUDO_USER:-$USER}"
     BUILD_DIR=$(mktemp -d)
@@ -131,110 +114,30 @@ build_quickshell_from_source() {
     rm -rf "$BUILD_DIR" 2>/dev/null || true
 }
 
-install_quickshell_via_nix() {
-    log_info "Installing Quickshell via Nix package manager..."
-
-    # Install Nix package manager if not present
-    if ! command -v nix &>/dev/null && ! [ -f "$HOME/.nix-profile/bin/nix" ] && ! [ -f "/nix/var/nix/profiles/default/bin/nix" ]; then
-        log_info "Nix is not installed. Installing Nix package manager automatically..."
-        if command -v apt-get &>/dev/null && apt-cache show nix-bin &>/dev/null; then
-            $SUDO_CMD apt install -y nix-bin 2>/dev/null || true
-        fi
-
-        if ! command -v nix &>/dev/null; then
-            log_info "Running official Nix installer script..."
-            sh <(curl -L https://nixos.org/nix/install) --no-daemon 2>/dev/null || true
-        fi
-    fi
-
-    # Load Nix environment paths into current shell
-    if [ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
-        . "$HOME/.nix-profile/etc/profile.d/nix.sh"
-    elif [ -f "/etc/profile.d/nix.sh" ]; then
-        . "/etc/profile.d/nix.sh"
-    fi
-
-    if command -v nix &>/dev/null || [ -f "$HOME/.nix-profile/bin/nix" ]; then
-        log_info "Installing Quickshell flake package via Nix..."
-        mkdir -p "$HOME/.config/nix"
-        echo "experimental-features = nix-command flakes" >> "$HOME/.config/nix/nix.conf" 2>/dev/null || true
-
-        # Install quickshell via nix profile
-        nix profile install github:outfoxxed/quickshell --extra-experimental-features 'nix-command flakes' 2>/dev/null || \
-        nix-env -iA nixpkgs.quickshell 2>/dev/null || true
-
-        # Symlink installed nix quickshell binary to ~/.local/bin/quickshell
-        NIX_QS_BIN=$(find "$HOME/.nix-profile/bin" "/nix/var/nix/profiles" "$HOME/.nix-profile" -name quickshell 2>/dev/null | head -n 1)
-        if [ -n "$NIX_QS_BIN" ]; then
-            mkdir -p "$HOME/.local/bin"
-            ln -sf "$NIX_QS_BIN" "$HOME/.local/bin/quickshell"
-            ln -sf "$NIX_QS_BIN" "$HOME/.local/bin/qs"
-            log_success "Quickshell installed successfully via Nix!"
-            return 0
-        fi
-    fi
-
-    log_warn "Nix installation of Quickshell did not complete successfully."
-    return 1
-}
-
 install_debian() {
     log_info "Setting up repositories and installing packages for Debian/Ubuntu/Linux Mint..."
-
-    # Detect distro specifics and Ubuntu base codename
-    IS_UBUNTU_BASED=false
-    UBUNTU_CODENAME=""
-    if [ -f /etc/os-release ]; then
-        if grep -qi -E 'ubuntu|mint|pop|zorin|elementary|neon|tuxedo|linuxlite' /etc/os-release || grep -qi 'ID_LIKE=.*ubuntu' /etc/os-release; then
-            IS_UBUNTU_BASED=true
-        fi
-        UBUNTU_CODENAME=$(grep -E '^UBUNTU_CODENAME=' /etc/os-release | cut -d= -f2 | tr -d '"')
-    fi
-    [ -z "$UBUNTU_CODENAME" ] && UBUNTU_CODENAME="noble"
 
     # Clean up obsolete butterrepo repository if it exists
     if [ -f /etc/apt/sources.list.d/butterrepo.list ]; then
         $SUDO_CMD rm -f /etc/apt/sources.list.d/butterrepo.list /usr/share/keyrings/butterrepo.gpg 2>/dev/null || true
     fi
 
-    if [ "$IS_UBUNTU_BASED" = true ]; then
-        # Clean up any previous/conflicting DankLinux repository files to prevent Signed-By conflicts in APT
-        log_info "Cleaning up obsolete DankLinux repository definitions..."
-        $SUDO_CMD rm -f /etc/apt/sources.list.d/*danklinux*.list /etc/apt/keyrings/*danklinux*.gpg 2>/dev/null || true
-
-        # Add PPAs for Ubuntu/Mint (DankLinux for Quickshell & zhangsongcui3371 for Fastfetch)
-        if ! command -v add-apt-repository &>/dev/null; then
-            $SUDO_CMD apt update -y && $SUDO_CMD apt install -y software-properties-common 2>/dev/null || true
+    # Add Fastfetch PPA for Ubuntu/Mint if fastfetch is not available
+    if command -v add-apt-repository &>/dev/null; then
+        if ! apt-cache show fastfetch &>/dev/null; then
+            log_info "Adding Fastfetch PPA (ppa:zhangsongcui3371/fastfetch)..."
+            $SUDO_CMD add-apt-repository -y ppa:zhangsongcui3371/fastfetch 2>/dev/null || true
         fi
-        if command -v add-apt-repository &>/dev/null; then
-            if ! apt-cache show quickshell &>/dev/null; then
-                log_info "Adding DankLinux PPA for Ubuntu/Mint..."
-                $SUDO_CMD add-apt-repository -y ppa:avengemedia/danklinux 2>/dev/null || true
-            fi
-            if ! apt-cache show fastfetch &>/dev/null; then
-                log_info "Adding Fastfetch PPA (ppa:zhangsongcui3371/fastfetch) for Ubuntu/Mint..."
-                $SUDO_CMD add-apt-repository -y ppa:zhangsongcui3371/fastfetch 2>/dev/null || true
-            fi
+    fi
 
-            # Fix Linux Mint codename mismatches in PPA files (e.g. replace 'wilma'/'virginia' with 'noble'/'jammy')
-            if [ -n "$UBUNTU_CODENAME" ]; then
-                for listfile in /etc/apt/sources.list.d/*danklinux*.list /etc/apt/sources.list.d/*fastfetch*.list /etc/apt/sources.list.d/*zhangsongcui3371*.list; do
-                    if [ -f "$listfile" ]; then
-                        $SUDO_CMD sed -i -E "s/(wilma|virginia|faye|victoria|vera|vanessa)/$UBUNTU_CODENAME/g" "$listfile" 2>/dev/null || true
-                    fi
-                done
-            fi
-        fi
-    else
-        # For Debian 13 / testing / trixie
-        if ! apt-cache show quickshell &>/dev/null; then
-            log_info "Adding DankLinux repository for Debian..."
-            $SUDO_CMD mkdir -p /etc/apt/keyrings /etc/apt/trusted.gpg.d
-            if ! [ -f /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list ]; then
-                curl -fsSL "https://download.opensuse.org/repositories/home:/AvengeMedia:/danklinux/Debian_13/Release.key" | $SUDO_CMD tee /etc/apt/trusted.gpg.d/home-AvengeMedia-danklinux.asc >/dev/null 2>/dev/null || true
-                curl -fsSL "https://download.opensuse.org/repositories/home:/AvengeMedia:/danklinux/Debian_13/Release.key" | $SUDO_CMD gpg --dearmor -o /etc/apt/keyrings/home-AvengeMedia-danklinux.gpg 2>/dev/null || true
-                echo "deb [signed-by=/etc/apt/keyrings/home-AvengeMedia-danklinux.gpg arch=amd64] https://download.opensuse.org/repositories/home:/AvengeMedia:/danklinux/Debian_13/ /" | $SUDO_CMD tee /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list >/dev/null
-            fi
+    # Add DankLinux repository for Debian/Ubuntu if quickshell is missing
+    if ! apt-cache show quickshell &>/dev/null; then
+        log_info "Adding DankLinux repository for Debian..."
+        $SUDO_CMD mkdir -p /etc/apt/keyrings /etc/apt/trusted.gpg.d
+        if ! [ -f /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list ]; then
+            curl -fsSL "https://download.opensuse.org/repositories/home:/AvengeMedia:/danklinux/Debian_13/Release.key" | $SUDO_CMD tee /etc/apt/trusted.gpg.d/home-AvengeMedia-danklinux.asc >/dev/null 2>/dev/null || true
+            curl -fsSL "https://download.opensuse.org/repositories/home:/AvengeMedia:/danklinux/Debian_13/Release.key" | $SUDO_CMD gpg --dearmor -o /etc/apt/keyrings/home-AvengeMedia-danklinux.gpg 2>/dev/null || true
+            echo "deb [signed-by=/etc/apt/keyrings/home-AvengeMedia-danklinux.gpg arch=amd64] https://download.opensuse.org/repositories/home:/AvengeMedia:/danklinux/Debian_13/ /" | $SUDO_CMD tee /etc/apt/sources.list.d/home-AvengeMedia-danklinux.list >/dev/null
         fi
     fi
 
@@ -244,7 +147,7 @@ install_debian() {
         $SUDO_CMD apt update -y || true
     fi
 
-    # Core system packages (excluding quickshell to prevent apt batch transaction failure)
+    # Core system packages
     PACKAGES=(
         bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty xfce4-terminal xterm fastfetch git fish starship
         xclip xdotool x11-utils x11-xserver-utils pamixer playerctl wireplumber pipewire-audio
@@ -285,20 +188,14 @@ install_debian() {
     if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
         log_info "Installing Quickshell package..."
         if apt-cache show quickshell &>/dev/null; then
-            $SUDO_CMD apt install -y quickshell 2>/dev/null || log_warn "Quickshell APT installation failed due to system dependency constraints."
+            $SUDO_CMD apt install -y quickshell 2>/dev/null || log_warn "Quickshell APT installation failed."
         else
             log_warn "Quickshell package not found in current APT repositories."
         fi
 
-        # Primary Fallback for Ubuntu/Mint: Install via Nix package manager
+        # Fallback: Compile from source if quickshell is still missing
         if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
-            log_info "Quickshell not available via APT. Installing via Nix package manager..."
-            install_quickshell_via_nix || true
-        fi
-
-        # Secondary Fallback: Compile from source if quickshell is still missing
-        if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
-            log_warn "Quickshell is still not present. Falling back to automatic source build..."
+            log_warn "Quickshell is not present via APT. Falling back to automatic source build..."
             build_quickshell_from_source
         fi
     fi

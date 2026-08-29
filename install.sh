@@ -90,7 +90,7 @@ build_quickshell_from_source() {
     log_info "Installing build dependencies for Quickshell..."
     BUILD_PACKAGES=(
         cmake ninja-build build-essential pkg-config
-        qt6-base-dev qt6-declarative-dev qt6-shadertools-dev qt6-wayland
+        qt6-base-dev qt6-declarative-dev qt6-shadertools-dev qt6-wayland-dev qt6-wayland
         libwayland-dev wayland-protocols libpipewire-0.3-dev libdbus-1-dev
         libxkbcommon-dev libqt6svg6-dev qt6-svg-dev
         qml6-module-qtquick-effects qml6-module-qtquick-templates
@@ -107,10 +107,8 @@ build_quickshell_from_source() {
         $SUDO_CMD apt install -y "${VALID_BUILD_PKGS[@]}"
     fi
 
-    # Explicitly ensure qt6-shadertools-dev is installed
-    if apt-cache show qt6-shadertools-dev &>/dev/null; then
-        $SUDO_CMD apt install -y qt6-shadertools-dev
-    fi
+    # Explicitly ensure dev packages for Qt6 Wayland and ShaderTools are installed
+    $SUDO_CMD apt install -y qt6-wayland-dev qt6-shadertools-dev qt6-base-dev qt6-declarative-dev 2>/dev/null || true
 
     REAL_USER="${SUDO_USER:-$USER}"
     BUILD_DIR=$(mktemp -d)

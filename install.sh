@@ -494,11 +494,24 @@ setup_gtk_theme() {
         log_success "Copied Nordic-darker theme to ~/.themes/ and ~/.local/share/themes/"
     fi
 
-    # Copy Cursor Theme
-    if [ -d "$SCRIPT_DIR/icons/Sweet-cursors" ]; then
+    # Extract or Copy Cursor Theme (prioritizes .tar.xz archive)
+    mkdir -p "$HOME/.icons" "$HOME/.local/share/icons"
+    if [ -f "$SCRIPT_DIR/icons/Sweet-cursors.tar.xz" ]; then
+        tar -xf "$SCRIPT_DIR/icons/Sweet-cursors.tar.xz" -C "$HOME/.icons/" 2>/dev/null || true
+        tar -xf "$SCRIPT_DIR/icons/Sweet-cursors.tar.xz" -C "$HOME/.local/share/icons/" 2>/dev/null || true
+        log_success "Extracted Sweet-cursors.tar.xz to ~/.icons/ and ~/.local/share/icons/"
+    elif [ -f "$SCRIPT_DIR/icons/Sweet-cursors.tar.gz" ]; then
+        tar -xzf "$SCRIPT_DIR/icons/Sweet-cursors.tar.gz" -C "$HOME/.icons/" 2>/dev/null || true
+        tar -xzf "$SCRIPT_DIR/icons/Sweet-cursors.tar.gz" -C "$HOME/.local/share/icons/" 2>/dev/null || true
+        log_success "Extracted Sweet-cursors.tar.gz to ~/.icons/ and ~/.local/share/icons/"
+    elif [ -f "$SCRIPT_DIR/icons/Sweet-cursors.zip" ]; then
+        unzip -q "$SCRIPT_DIR/icons/Sweet-cursors.zip" -d "$HOME/.icons/" 2>/dev/null || true
+        unzip -q "$SCRIPT_DIR/icons/Sweet-cursors.zip" -d "$HOME/.local/share/icons/" 2>/dev/null || true
+        log_success "Extracted Sweet-cursors.zip to ~/.icons/ and ~/.local/share/icons/"
+    elif [ -d "$SCRIPT_DIR/icons/Sweet-cursors" ]; then
         cp -r "$SCRIPT_DIR/icons/Sweet-cursors" "$HOME/.icons/"
         cp -r "$SCRIPT_DIR/icons/Sweet-cursors" "$HOME/.local/share/icons/"
-        log_success "Copied Sweet-cursors to ~/.icons/ and ~/.local/share/icons/"
+        log_success "Copied Sweet-cursors folder to ~/.icons/ and ~/.local/share/icons/"
     fi
 
     # Apply via gsettings (if available)

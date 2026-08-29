@@ -88,12 +88,29 @@ build_quickshell_from_source() {
     log_info "Building Quickshell automatically from source..."
 
     log_info "Installing build dependencies for Quickshell..."
-    $SUDO_CMD apt install -y cmake ninja-build build-essential \
-        qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools \
-        qt6-shadertools-dev libqt6shadertools6-dev \
-        qt6-wayland libwayland-dev wayland-protocols libpipewire-0.3-dev libdbus-1-dev \
-        libxkbcommon-dev pkg-config libqt6svg6-dev qml6-module-qtquick-effects \
-        qml6-module-qtshadertools qml6-module-qtquick-templates 2>/dev/null || true
+    BUILD_PACKAGES=(
+        cmake ninja-build build-essential pkg-config
+        qt6-base-dev qt6-declarative-dev qt6-shadertools-dev qt6-wayland
+        libwayland-dev wayland-protocols libpipewire-0.3-dev libdbus-1-dev
+        libxkbcommon-dev libqt6svg6-dev qt6-svg-dev
+        qml6-module-qtquick-effects qml6-module-qtquick-templates
+    )
+
+    VALID_BUILD_PKGS=()
+    for pkg in "${BUILD_PACKAGES[@]}"; do
+        if apt-cache show "$pkg" &>/dev/null; then
+            VALID_BUILD_PKGS+=("$pkg")
+        fi
+    done
+
+    if [ ${#VALID_BUILD_PKGS[@]} -gt 0 ]; then
+        $SUDO_CMD apt install -y "${VALID_BUILD_PKGS[@]}"
+    fi
+
+    # Explicitly ensure qt6-shadertools-dev is installed
+    if apt-cache show qt6-shadertools-dev &>/dev/null; then
+        $SUDO_CMD apt install -y qt6-shadertools-dev
+    fi
 
     REAL_USER="${SUDO_USER:-$USER}"
     BUILD_DIR=$(mktemp -d)
@@ -152,6 +169,15 @@ install_debian() {
             if ! apt-cache show fastfetch &>/dev/null; then
                 log_info "Adding Fastfetch PPA (ppa:zhangsongcui3371/fastfetch) for Ubuntu/Mint..."
                 $SUDO_CMD add-apt-repository -y ppa:zhangsongcui3371/fastfetch 2>/dev/null || true
+            fi
+
+            # Fix Linux Mint codename mismatches in PPA files (e.g. replace 'wilma'/'virginia' with 'noble'/'jammy')
+            if [ -n "$UBUNTU_CODENAME" ]; then
+                for listfile in /etc/apt/sources.list.d/*danklinux*.list /etc/apt/sources.list.d/*fastfetch*.list /etc/apt/sources.list.d/*zhangsongcui3371*.list; do
+                    if [ -f "$listfile" ]; then
+                        $SUDO_CMD sed -i -E "s/(wilma|virginia|faye|victoria|vera|vanessa)/$UBUNTU_CODENAME/g" "$listfile" 2>/dev/null || true
+                    fi
+                done
             fi
         fi
     else
@@ -658,6 +684,8 @@ setup_fish_shell() {
             echo "$FISH_BIN" | $SUDO_CMD tee -a /etc/shells >/dev/null || true
         fi
         $SUDO_CMD chsh -s "$FISH_BIN" "$REAL_USER" 2>/dev/null || chsh -s "$FISH_BIN" 2>/dev/null || true
+        # Suppress default Fish welcome greeting
+        fish -c "set -U fish_greeting ''" 2>/dev/null || true
         log_success "Default shell set to Fish ($FISH_BIN) for user '$REAL_USER'."
     else
         log_warn "Fish shell binary not found. Skipping default shell change."

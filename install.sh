@@ -121,7 +121,7 @@ install_debian() {
     IS_UBUNTU_BASED=false
     UBUNTU_CODENAME=""
     if [ -f /etc/os-release ]; then
-        if grep -qi -E 'ubuntu|mint|pop' /etc/os-release; then
+        if grep -qi -E 'ubuntu|mint|pop|zorin|elementary|neon|tuxedo|linuxlite' /etc/os-release || grep -qi 'ID_LIKE=.*ubuntu' /etc/os-release; then
             IS_UBUNTU_BASED=true
         fi
         UBUNTU_CODENAME=$(grep -E '^UBUNTU_CODENAME=' /etc/os-release | cut -d= -f2 | tr -d '"')

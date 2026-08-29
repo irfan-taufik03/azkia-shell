@@ -169,7 +169,7 @@ install_debian() {
 
     # Core system packages (excluding quickshell to prevent apt batch transaction failure)
     PACKAGES=(
-        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty xfce4-terminal xterm fastfetch git
+        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty xfce4-terminal xterm fastfetch git fish starship
         xclip xdotool x11-utils x11-xserver-utils pamixer playerctl wireplumber pipewire-audio
         brightnessctl upower power-profiles-daemon bluez bluez-tools bluez-obexd libspa-0.2-bluetooth network-manager
         python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 libx11-6 libxss1
@@ -214,7 +214,7 @@ install_arch() {
     log_info "Installing packages for Arch Linux..."
 
     PACKAGES=(
-        base-devel bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxsession xfce4-power-manager kitty xfce4-terminal xterm fastfetch git
+        base-devel bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxsession xfce4-power-manager kitty xfce4-terminal xterm fastfetch git fish starship
         xclip xdotool xorg-xprop xorg-xset xorg-xrandr xorg-xsetroot pamixer playerctl wireplumber pipewire-pulse
         brightnessctl upower power-profiles-daemon bluez bluez-utils networkmanager
         python python-gobject gtk3 libx11 libxss
@@ -268,7 +268,7 @@ install_fedora() {
     $SUDO_CMD dnf copr enable -y avengemedia/danklinux 2>/dev/null || true
 
     PACKAGES=(
-        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty xfce4-terminal xterm fastfetch git
+        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty xfce4-terminal xterm fastfetch git fish starship
         xclip xdotool xprop xset xrandr xsetroot pamixer playerctl wireplumber pipewire
         brightnessctl upower power-profiles-daemon bluez bluez-tools NetworkManager
         python3 python3-gobject gtk3 libX11 libXScrnSaver
@@ -329,6 +329,13 @@ install_dependencies() {
             exit 1
             ;;
     esac
+
+    # Ensure starship is installed (fallback installer if package manager missed it)
+    if ! command -v starship &>/dev/null; then
+        log_info "Installing Starship shell prompt via official script..."
+        curl -sS https://starship.rs/install.sh | $SUDO_CMD sh -s -- -y 2>/dev/null || curl -sS https://starship.rs/install.sh | sh -s -- -y || true
+    fi
+
     log_success "All system dependencies installed successfully!"
 }
 
@@ -423,6 +430,20 @@ deploy_config() {
     FASTFETCH_CONF="$FASTFETCH_TARGET/config.jsonc"
     if [ -f "$FASTFETCH_CONF" ]; then
         sed -i "s|/home/[^/]*|$HOME|g" "$FASTFETCH_CONF"
+    fi
+
+    # Deploy Fish shell configuration to ~/.config/fish/
+    FISH_TARGET="$HOME/.config/fish"
+    mkdir -p "$FISH_TARGET"
+    if [ -d "$SCRIPT_DIR/fish" ]; then
+        cp -r "$SCRIPT_DIR/fish"/* "$FISH_TARGET/"
+        log_info "Deployed Fish shell configuration to $FISH_TARGET/config.fish"
+    fi
+
+    # Deploy Starship prompt configuration to ~/.config/starship.toml
+    if [ -f "$SCRIPT_DIR/starship.toml" ]; then
+        cp "$SCRIPT_DIR/starship.toml" "$HOME/.config/starship.toml"
+        log_info "Deployed Starship configuration to $HOME/.config/starship.toml"
     fi
 
     # Create default ~/.fehbg wallpaper script if not present
@@ -598,12 +619,27 @@ enable_services() {
     $SUDO_CMD systemctl enable --now power-profiles-daemon 2>/dev/null || true
 }
 
+setup_fish_shell() {
+    log_info "Setting default user shell to Fish..."
+    FISH_BIN=$(command -v fish 2>/dev/null || true)
+    if [ -n "$FISH_BIN" ]; then
+        REAL_USER="${SUDO_USER:-$USER}"
+        if [ -f /etc/shells ] && ! grep -q "$FISH_BIN" /etc/shells; then
+            echo "$FISH_BIN" | $SUDO_CMD tee -a /etc/shells >/dev/null || true
+        fi
+        $SUDO_CMD chsh -s "$FISH_BIN" "$REAL_USER" 2>/dev/null || chsh -s "$FISH_BIN" 2>/dev/null || true
+        log_success "Default shell set to Fish ($FISH_BIN) for user '$REAL_USER'."
+    else
+        log_warn "Fish shell binary not found. Skipping default shell change."
+    fi
+}
+
 verify_installation() {
     echo -e "\n${PURPLE}====================================================${NC}"
     log_info "Verifying installed components..."
 
     ERRORS=0
-    for cmd in bspwm sxhkd picom feh python3 pamixer brightnessctl playerctl bluetoothctl nmcli kitty fastfetch; do
+    for cmd in bspwm sxhkd picom feh python3 pamixer brightnessctl playerctl bluetoothctl nmcli kitty fastfetch fish starship; do
         if command -v "$cmd" &>/dev/null; then
             echo -e "  [${GREEN}OK${NC}] Command '$cmd' is available."
         else
@@ -645,6 +681,7 @@ main() {
     install_dependencies
     prepare_source_dir
     deploy_config
+    setup_fish_shell
     deploy_fonts
     setup_gtk_theme
     setup_xsessions

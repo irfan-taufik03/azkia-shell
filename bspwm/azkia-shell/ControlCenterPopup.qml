@@ -1168,6 +1168,7 @@ Popout {
                                         font.family: Theme.fontFamily
                                         font.pixelSize: 12
                                         clip: true
+                                        selectByMouse: true
 
                                         onAccepted: submitPass()
 
@@ -1233,10 +1234,10 @@ Popout {
                                     }
 
                                     function submitPass() {
-                                        if (passInput.text !== "") {
+                                        if (passInput.text && passInput.text.trim() !== "") {
                                             const escapedSsid = modelData.ssid.replace(/'/g, "'\\''")
-                                            const escapedPass = passInput.text.replace(/'/g, "'\\''")
-                                            Quickshell.execDetached(["sh", "-c", "nmcli dev wifi connect '" + escapedSsid + "' password '" + escapedPass + "' 2>/dev/null || nmcli con up id '" + escapedSsid + "'"])
+                                            const escapedPass = passInput.text.trim().replace(/'/g, "'\\''")
+                                            Quickshell.execDetached(["sh", "-c", "nmcli con delete id '" + escapedSsid + "' 2>/dev/null; nmcli dev wifi connect '" + escapedSsid + "' password '" + escapedPass + "'"])
                                             Quickshell.execDetached(["notify-send", "-a", "Wi-Fi", "Wi-Fi Connecting", "Connecting to " + modelData.ssid])
                                             passInput.text = ""
                                             root.selectedWifiSsid = ""

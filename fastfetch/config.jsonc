@@ -9,16 +9,13 @@
     "separator": ""
   },
   "logo": {
-    "type": "kitty-direct",
-    "source": "~/.config/fastfetch/azkia-shell-logo.png",
-    "width": 26,
-    "height": 13
+    "type": "auto"
   },
   "modules": [
     "break",
     {
       "type": "os",
-      "key": " OS",
+      "key": " OS",
       "keyColor": "magenta",
       "format": "{name}"
     },

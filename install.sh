@@ -131,6 +131,53 @@ build_quickshell_from_source() {
     rm -rf "$BUILD_DIR" 2>/dev/null || true
 }
 
+install_quickshell_via_nix() {
+    log_info "Installing Quickshell via Nix package manager..."
+
+    # Install Nix package manager if not present
+    if ! command -v nix &>/dev/null && ! [ -f "$HOME/.nix-profile/bin/nix" ] && ! [ -f "/nix/var/nix/profiles/default/bin/nix" ]; then
+        log_info "Nix is not installed. Installing Nix package manager automatically..."
+        if command -v apt-get &>/dev/null && apt-cache show nix-bin &>/dev/null; then
+            $SUDO_CMD apt install -y nix-bin 2>/dev/null || true
+        fi
+
+        if ! command -v nix &>/dev/null; then
+            log_info "Running official Nix installer script..."
+            sh <(curl -L https://nixos.org/nix/install) --no-daemon 2>/dev/null || true
+        fi
+    fi
+
+    # Load Nix environment paths into current shell
+    if [ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
+        . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+    elif [ -f "/etc/profile.d/nix.sh" ]; then
+        . "/etc/profile.d/nix.sh"
+    fi
+
+    if command -v nix &>/dev/null || [ -f "$HOME/.nix-profile/bin/nix" ]; then
+        log_info "Installing Quickshell flake package via Nix..."
+        mkdir -p "$HOME/.config/nix"
+        echo "experimental-features = nix-command flakes" >> "$HOME/.config/nix/nix.conf" 2>/dev/null || true
+
+        # Install quickshell via nix profile
+        nix profile install github:outfoxxed/quickshell --extra-experimental-features 'nix-command flakes' 2>/dev/null || \
+        nix-env -iA nixpkgs.quickshell 2>/dev/null || true
+
+        # Symlink installed nix quickshell binary to ~/.local/bin/quickshell
+        NIX_QS_BIN=$(find "$HOME/.nix-profile/bin" "/nix/var/nix/profiles" "$HOME/.nix-profile" -name quickshell 2>/dev/null | head -n 1)
+        if [ -n "$NIX_QS_BIN" ]; then
+            mkdir -p "$HOME/.local/bin"
+            ln -sf "$NIX_QS_BIN" "$HOME/.local/bin/quickshell"
+            ln -sf "$NIX_QS_BIN" "$HOME/.local/bin/qs"
+            log_success "Quickshell installed successfully via Nix!"
+            return 0
+        fi
+    fi
+
+    log_warn "Nix installation of Quickshell did not complete successfully."
+    return 1
+}
+
 install_debian() {
     log_info "Setting up repositories and installing packages for Debian/Ubuntu/Linux Mint..."
 
@@ -243,9 +290,15 @@ install_debian() {
             log_warn "Quickshell package not found in current APT repositories."
         fi
 
-        # Auto fallback: Compile from source if quickshell is still missing
+        # Primary Fallback for Ubuntu/Mint: Install via Nix package manager
         if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
-            log_warn "Quickshell is not present via APT. Falling back to automatic source build..."
+            log_info "Quickshell not available via APT. Installing via Nix package manager..."
+            install_quickshell_via_nix || true
+        fi
+
+        # Secondary Fallback: Compile from source if quickshell is still missing
+        if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
+            log_warn "Quickshell is still not present. Falling back to automatic source build..."
             build_quickshell_from_source
         fi
     fi

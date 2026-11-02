@@ -416,17 +416,24 @@ deploy_config() {
 
     # Deploy desktop entries for integrated Azkia applications (.desktop files)
     APPS_DIR="$HOME/.local/share/applications"
-    mkdir -p "$APPS_DIR"
+    mkdir -p "$APPS_DIR" "$HOME/.local/bin"
     if [ -d "$TARGET_DIR/azkia-shell/applications" ]; then
-        log_info "Deploying Azkia applications to $APPS_DIR..."
+        log_info "Deploying Azkia applications (.desktop files) to $APPS_DIR..."
         for df in "$TARGET_DIR/azkia-shell/applications"/*.desktop; do
             [ -f "$df" ] || continue
+            sed -i "s|/home/[^/]*|$HOME|g" "$df"
             df_name=$(basename "$df")
             cp "$df" "$APPS_DIR/$df_name"
-            sed -i "s|/home/[^/]*|$HOME|g" "$APPS_DIR/$df_name"
         done
         command -v update-desktop-database &>/dev/null && update-desktop-database "$APPS_DIR" 2>/dev/null || true
     fi
+
+    # Create convenient CLI symlinks in ~/.local/bin (azkia-audio-player, azkia-pdf, azkia-settings)
+    for app_bin in azkia-audio-player azkia-pdf azkia-settings; do
+        if [ -x "$TARGET_DIR/azkia-shell/scripts/$app_bin" ]; then
+            ln -sf "$TARGET_DIR/azkia-shell/scripts/$app_bin" "$HOME/.local/bin/$app_bin"
+        fi
+    done
 
     # Deploy systemd user services and timers (Hourly Movement Reminder)
     SYSTEMD_USER_DIR="$HOME/.config/systemd/user"

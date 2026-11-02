@@ -116,7 +116,7 @@ if ! command -v greetd &>/dev/null; then
     elif command -v apt-get &>/dev/null; then
         install_packages greetd xinit
     elif command -v dnf &>/dev/null || command -v dnf5 &>/dev/null; then
-        install_packages greetd xinit
+        install_packages greetd xorg-x11-xinit
     elif command -v zypper &>/dev/null; then
         install_packages greetd xinit
     elif command -v xbps-install &>/dev/null; then
@@ -135,6 +135,8 @@ if ! command -v xinit &>/dev/null; then
     echo "[*] xinit belum terpasang. Memasang xinit..."
     if command -v pacman &>/dev/null; then
         install_packages xorg-xinit
+    elif command -v dnf &>/dev/null || command -v dnf5 &>/dev/null; then
+        install_packages xorg-x11-xinit
     else
         install_packages xinit
     fi

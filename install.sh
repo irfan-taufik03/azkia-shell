@@ -149,10 +149,10 @@ install_debian() {
 
     # Core system packages
     PACKAGES=(
-        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty xfce4-terminal xterm fastfetch git fish starship
+        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty xfce4-terminal xterm fastfetch git fish starship mpv
         xclip xdotool x11-utils x11-xserver-utils pamixer playerctl wireplumber pipewire-audio
         brightnessctl upower power-profiles-daemon bluez bluez-tools bluez-obexd libspa-0.2-bluetooth network-manager
-        python3 python3-gi python3-gi-cairo python3-dbus polkitd gir1.2-gtk-3.0 libx11-6 libxss1
+        python3 python3-gi python3-gi-cairo python3-dbus python3-mutagen polkitd gir1.2-gtk-3.0 libx11-6 libxss1
         libqt6qml6 libqt6quick6 libqt6quickcontrols2-6 libqt6svg6 qml6-module-qtquick-controls
         qml6-module-qtquick-layouts qml6-module-qtquick-templates qml6-module-qtquick-shapes
         qml6-module-qtquick-window qml6-module-qtsvg qml6-module-qt5compat-graphicaleffects qml6-module-qtquick-effects qt6-gtk-platformtheme qt6-style-kvantum qt6ct
@@ -165,6 +165,14 @@ install_debian() {
             VALID_PACKAGES+=("$pkg")
         else
             log_warn "Package '$pkg' is not available in APT repositories. Skipping..."
+        fi
+    done
+
+    # Check for PyMuPDF package in Debian/Ubuntu (variations: python3-fitz or python3-pymupdf)
+    for p_fitz in python3-fitz python3-pymupdf; do
+        if apt-cache show "$p_fitz" &>/dev/null; then
+            VALID_PACKAGES+=("$p_fitz")
+            break
         fi
     done
 
@@ -205,10 +213,10 @@ install_arch() {
     log_info "Installing packages for Arch Linux..."
 
     PACKAGES=(
-        base-devel bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxsession xfce4-power-manager kitty xfce4-terminal xterm fastfetch git fish starship
+        base-devel bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxsession xfce4-power-manager kitty xfce4-terminal xterm fastfetch git fish starship mpv
         xclip xdotool xorg-xprop xorg-xset xorg-xrandr xorg-xsetroot pamixer playerctl wireplumber pipewire-pulse
         brightnessctl upower power-profiles-daemon bluez bluez-utils networkmanager
-        python python-gobject python-dbus polkit gtk3 libx11 libxss
+        python python-gobject python-dbus python-mutagen python-pymupdf polkit gtk3 libx11 libxss
         qt6-declarative qt6-svg qt6-5compat kvantum qt6ct
         ttf-font-awesome noto-fonts-emoji inter-font ttf-roboto ttf-jetbrains-mono
     )
@@ -259,12 +267,12 @@ install_fedora() {
     $SUDO_CMD dnf copr enable -y avengemedia/danklinux 2>/dev/null || true
 
     PACKAGES=(
-        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty xfce4-terminal xterm fastfetch git fish starship
+        bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty xfce4-terminal xterm fastfetch git fish starship mpv
         xclip xdotool xprop xset xrandr xsetroot pamixer playerctl wireplumber pipewire
         brightnessctl upower power-profiles-daemon bluez bluez-tools NetworkManager
-        python3 python3-gobject python3-dbus polkit gtk3 libX11 libXScrnSaver
-        qt6-qtdeclarative qt6-qtsvg qt6-qt5compat kvantum-qt6 qt6ct
-        fontawesome-fonts google-noto-emoji-fonts google-roboto-fonts jetbrains-mono-fonts
+        python3 python3-gobject python3-dbus python3-mutagen python3-PyMuPDF polkit gtk3 libX11 libXScrnSaver
+        qt6-qtdeclarative qt6-qtsvg qt6-qt5compat kvantum qt6ct
+        fontawesome-fonts-all google-noto-emoji-fonts google-roboto-fonts jetbrains-mono-fonts
     )
 
     VALID_PACKAGES=()

@@ -5,8 +5,13 @@ import Quickshell.Io
 Popout {
     id: root
 
+    IpcHandler {
+        target: "systemmonitor"
+        function toggle(): void { root.toggle() }
+    }
+
     cardWidth: 560
-    cardHeight: 510
+    cardHeight: 425
 
     property int cpuCount: 1
     property real memTotalGB: 0
@@ -85,7 +90,7 @@ Popout {
 
     Column {
         anchors.fill: parent
-        spacing: 14
+        spacing: 12
 
         // ================= HEADER =================
         Item {
@@ -114,199 +119,239 @@ Popout {
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
-
-            // Close button
-            Rectangle {
-                width: 24
-                height: 24
-                radius: 12
-                color: closeMa.containsMouse ? Qt.alpha(Theme.fg, 0.15) : "transparent"
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "✕"
-                    color: Qt.alpha(Theme.fg, 0.7)
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 12
-                }
-
-                MouseArea {
-                    id: closeMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.visible = false
-                }
-            }
         }
 
-        // ================= 1 ROW CARDS (CPU | MEMORY | SWAP) =================
+        // ================= 1 ROW ENLARGED CIRCLES (CPU | MEMORY | SWAP) =================
         Row {
             width: parent.width
-            spacing: 10
+            height: 106
 
-            // ----- 1. CPU CARD -----
-            Rectangle {
-                width: (parent.width - 20) / 3
-                height: 75
-                radius: 10
-                color: Sys.customModuleBg
-                border.width: 1
-                border.color: Sys.customModuleBorder
+            // ----- 1. CPU CIRCLE -----
+            Item {
+                width: parent.width / 3
+                height: parent.height
 
-                Column {
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 6
+                Item {
+                    width: 100
+                    height: 100
+                    anchors.centerIn: parent
 
-                    Item {
-                        width: parent.width
-                        height: 18
+                    Canvas {
+                        id: cpuCanvas
+                        anchors.fill: parent
+                        property real val: Math.min(100, Math.max(0, Sys.cpu)) / 100
+                        property color colorVal: Sys.cpu > 85 ? Theme.red : Theme.yellow
+                        onValChanged: requestPaint()
+                        onColorValChanged: requestPaint()
 
-                        Row {
-                            spacing: 5
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            Text { text: "󰻠"; color: Theme.yellow; font.family: Theme.fontFamily; font.pixelSize: 14 }
-                            Text { text: "CPU"; color: Theme.fg; font.family: Theme.fontFamily; font.pixelSize: 11; font.bold: true }
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.reset()
+                            var cx = width / 2
+                            var cy = height / 2
+                            var r = (width - 12) / 2
+                            var start = -Math.PI / 2
+                            var end = start + (val * 2 * Math.PI)
+
+                            ctx.beginPath()
+                            ctx.arc(cx, cy, r, 0, 2 * Math.PI)
+                            ctx.strokeStyle = Qt.alpha(Theme.fg, 0.1)
+                            ctx.lineWidth = 6
+                            ctx.stroke()
+
+                            if (val > 0) {
+                                ctx.beginPath()
+                                ctx.arc(cx, cy, r, start, end)
+                                ctx.strokeStyle = colorVal
+                                ctx.lineWidth = 7.5
+                                ctx.lineCap = "round"
+                                ctx.stroke()
+                            }
+                        }
+                    }
+
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 2
+
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "CPU"
+                            color: Qt.alpha(Theme.fg, 0.75)
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 11
+                            font.bold: true
                         }
 
                         Text {
-                            anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: root.cpuCount + " cores"
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: Math.round(Sys.cpu) + "%"
+                            color: Sys.cpu > 85 ? Theme.red : Theme.yellow
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 16
+                            font.bold: true
+                        }
+
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: root.cpuCount + " Cores"
                             color: Qt.alpha(Theme.fg, 0.5)
                             font.family: Theme.fontFamily
                             font.pixelSize: 10
                         }
                     }
+                }
+            }
 
-                    Text {
-                        text: Math.round(Sys.cpu) + "%"
-                        color: Sys.cpu > 85 ? Theme.red : Theme.fg
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 14
-                        font.bold: true
+            // ----- 2. RAM CIRCLE -----
+            Item {
+                width: parent.width / 3
+                height: parent.height
+
+                Item {
+                    width: 100
+                    height: 100
+                    anchors.centerIn: parent
+
+                    Canvas {
+                        id: memCanvas
+                        anchors.fill: parent
+                        property real val: Math.min(100, Math.max(0, root.memPercent)) / 100
+                        property color colorVal: root.memPercent > 85 ? Theme.red : Theme.accent
+                        onValChanged: requestPaint()
+                        onColorValChanged: requestPaint()
+
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.reset()
+                            var cx = width / 2
+                            var cy = height / 2
+                            var r = (width - 12) / 2
+                            var start = -Math.PI / 2
+                            var end = start + (val * 2 * Math.PI)
+
+                            ctx.beginPath()
+                            ctx.arc(cx, cy, r, 0, 2 * Math.PI)
+                            ctx.strokeStyle = Qt.alpha(Theme.fg, 0.1)
+                            ctx.lineWidth = 6
+                            ctx.stroke()
+
+                            if (val > 0) {
+                                ctx.beginPath()
+                                ctx.arc(cx, cy, r, start, end)
+                                ctx.strokeStyle = colorVal
+                                ctx.lineWidth = 7.5
+                                ctx.lineCap = "round"
+                                ctx.stroke()
+                            }
+                        }
                     }
 
-                    Rectangle {
-                        width: parent.width
-                        height: 4
-                        radius: 2
-                        color: Qt.alpha(Theme.fg, 0.1)
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 2
 
-                        Rectangle {
-                            height: parent.height
-                            width: Math.round((Math.min(100, Math.max(0, Sys.cpu)) / 100) * parent.width)
-                            radius: 2
-                            color: Sys.cpu > 85 ? Theme.red : Theme.yellow
-                            Behavior on width { NumberAnimation { duration: 300 } }
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "RAM"
+                            color: Qt.alpha(Theme.fg, 0.75)
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 11
+                            font.bold: true
+                        }
+
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: Math.round(root.memPercent) + "%"
+                            color: root.memPercent > 85 ? Theme.red : Theme.accent
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 16
+                            font.bold: true
+                        }
+
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: root.memUsedGB.toFixed(1) + " / " + root.memTotalGB.toFixed(1) + " GB"
+                            color: Qt.alpha(Theme.fg, 0.5)
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 9
                         }
                     }
                 }
             }
 
-            // ----- 2. MEMORY CARD -----
-            Rectangle {
-                width: (parent.width - 20) / 3
-                height: 75
-                radius: 10
-                color: Sys.customModuleBg
-                border.width: 1
-                border.color: Sys.customModuleBorder
+            // ----- 3. SWAP CIRCLE -----
+            Item {
+                width: parent.width / 3
+                height: parent.height
 
-                Column {
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 6
+                Item {
+                    width: 100
+                    height: 100
+                    anchors.centerIn: parent
 
-                    Item {
-                        width: parent.width
-                        height: 18
+                    Canvas {
+                        id: swapCanvas
+                        anchors.fill: parent
+                        property real val: Math.min(100, Math.max(0, root.swapPercent)) / 100
+                        property color colorVal: root.swapPercent > 85 ? Theme.red : Theme.cyan
+                        onValChanged: requestPaint()
+                        onColorValChanged: requestPaint()
 
-                        Row {
-                            spacing: 5
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            Text { text: "󰍛"; color: Theme.magenta; font.family: Theme.fontFamily; font.pixelSize: 14 }
-                            Text { text: "Memory"; color: Theme.fg; font.family: Theme.fontFamily; font.pixelSize: 11; font.bold: true }
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.reset()
+                            var cx = width / 2
+                            var cy = height / 2
+                            var r = (width - 12) / 2
+                            var start = -Math.PI / 2
+                            var end = start + (val * 2 * Math.PI)
+
+                            ctx.beginPath()
+                            ctx.arc(cx, cy, r, 0, 2 * Math.PI)
+                            ctx.strokeStyle = Qt.alpha(Theme.fg, 0.1)
+                            ctx.lineWidth = 6
+                            ctx.stroke()
+
+                            if (val > 0) {
+                                ctx.beginPath()
+                                ctx.arc(cx, cy, r, start, end)
+                                ctx.strokeStyle = colorVal
+                                ctx.lineWidth = 7.5
+                                ctx.lineCap = "round"
+                                ctx.stroke()
+                            }
                         }
                     }
 
-                    Text {
-                        text: root.memUsedGB.toFixed(1) + " GB / " + root.memTotalGB.toFixed(1) + " GB"
-                        color: root.memPercent > 85 ? Theme.red : Theme.fg
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 12
-                        font.bold: true
-                    }
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 2
 
-                    Rectangle {
-                        width: parent.width
-                        height: 4
-                        radius: 2
-                        color: Qt.alpha(Theme.fg, 0.1)
-
-                        Rectangle {
-                            height: parent.height
-                            width: Math.round((Math.min(100, Math.max(0, root.memPercent)) / 100) * parent.width)
-                            radius: 2
-                            color: root.memPercent > 85 ? Theme.red : Theme.magenta
-                            Behavior on width { NumberAnimation { duration: 300 } }
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "SWAP"
+                            color: Qt.alpha(Theme.fg, 0.75)
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 11
+                            font.bold: true
                         }
-                    }
-                }
-            }
 
-            // ----- 3. SWAP CARD -----
-            Rectangle {
-                width: (parent.width - 20) / 3
-                height: 75
-                radius: 10
-                color: Sys.customModuleBg
-                border.width: 1
-                border.color: Sys.customModuleBorder
-
-                Column {
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 6
-
-                    Item {
-                        width: parent.width
-                        height: 18
-
-                        Row {
-                            spacing: 5
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            Text { text: "󰓡"; color: Theme.cyan; font.family: Theme.fontFamily; font.pixelSize: 14 }
-                            Text { text: "SWAP"; color: Theme.fg; font.family: Theme.fontFamily; font.pixelSize: 11; font.bold: true }
-                        }
-                    }
-
-                    Text {
-                        text: root.swapUsedGB.toFixed(1) + " GB / " + root.swapTotalGB.toFixed(1) + " GB"
-                        color: Theme.fg
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 12
-                        font.bold: true
-                    }
-
-                    Rectangle {
-                        width: parent.width
-                        height: 4
-                        radius: 2
-                        color: Qt.alpha(Theme.fg, 0.1)
-
-                        Rectangle {
-                            height: parent.height
-                            width: Math.round((Math.min(100, Math.max(0, root.swapPercent)) / 100) * parent.width)
-                            radius: 2
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: Math.round(root.swapPercent) + "%"
                             color: Theme.cyan
-                            Behavior on width { NumberAnimation { duration: 300 } }
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 16
+                            font.bold: true
+                        }
+
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: root.swapUsedGB.toFixed(1) + " / " + root.swapTotalGB.toFixed(1) + " GB"
+                            color: Qt.alpha(Theme.fg, 0.5)
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 9
                         }
                     }
                 }
@@ -316,7 +361,7 @@ Popout {
         // ================= PROCESSES TABLE =================
         Column {
             width: parent.width
-            height: parent.height - 131
+            height: parent.height - 158
             spacing: 8
 
             // Header & Sort Controls
@@ -343,20 +388,21 @@ Popout {
                     // CPU Sort Indicator Pill (Clicking switches to CPU sort)
                     Rectangle {
                         height: 24
-                        width: 54
-                        radius: 12
-                        color: root.sortBy === "cpu" ? Qt.alpha(Theme.yellow, 0.25) : (cpuMa.containsMouse ? Qt.alpha(Theme.fg, 0.12) : Qt.alpha(Theme.fg, 0.05))
-                        border.width: root.sortBy === "cpu" ? 1 : 0
-                        border.color: Theme.yellow
+                        width: 60
+                        radius: 14
+                        color: root.sortBy === "cpu" ? Theme.yellow : (cpuMa.containsMouse ? Qt.alpha(Theme.fg, 0.12) : Qt.alpha(Theme.fg, 0.05))
+                        border.width: 0
                         anchors.verticalCenter: parent.verticalCenter
 
                         Text {
-                            anchors.centerIn: parent
+                            anchors.fill: parent
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
                             text: "CPU"
-                            color: root.sortBy === "cpu" ? Theme.yellow : Qt.alpha(Theme.fg, 0.7)
+                            color: root.sortBy === "cpu" ? Theme.bg : Qt.alpha(Theme.fg, 0.7)
                             font.family: Theme.fontFamily
                             font.pixelSize: 11
-                            font.bold: root.sortBy === "cpu"
+                            font.bold: true
                         }
 
                         MouseArea {
@@ -377,20 +423,21 @@ Popout {
                     // RAM Sort Indicator Pill (Clicking switches to RAM sort)
                     Rectangle {
                         height: 24
-                        width: 64
-                        radius: 12
-                        color: root.sortBy === "ram" ? Qt.alpha(Theme.magenta, 0.25) : (ramMa.containsMouse ? Qt.alpha(Theme.fg, 0.12) : Qt.alpha(Theme.fg, 0.05))
-                        border.width: root.sortBy === "ram" ? 1 : 0
-                        border.color: Theme.magenta
+                        width: 80
+                        radius: 14
+                        color: root.sortBy === "ram" ? Theme.accent : (ramMa.containsMouse ? Qt.alpha(Theme.fg, 0.12) : Qt.alpha(Theme.fg, 0.05))
+                        border.width: 0
                         anchors.verticalCenter: parent.verticalCenter
 
                         Text {
-                            anchors.centerIn: parent
+                            anchors.fill: parent
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
                             text: "RAM"
-                            color: root.sortBy === "ram" ? Theme.magenta : Qt.alpha(Theme.fg, 0.7)
+                            color: root.sortBy === "ram" ? Theme.bg : Qt.alpha(Theme.fg, 0.7)
                             font.family: Theme.fontFamily
                             font.pixelSize: 11
-                            font.bold: root.sortBy === "ram"
+                            font.bold: true
                         }
 
                         MouseArea {
@@ -410,10 +457,12 @@ Popout {
 
                     // PID Column Header
                     Item {
-                        width: 48
+                        width: 50
                         height: 24
                         Text {
-                            anchors.centerIn: parent
+                            anchors.fill: parent
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
                             text: "PID"
                             color: Qt.alpha(Theme.fg, 0.5)
                             font.family: Theme.fontFamily
@@ -425,7 +474,7 @@ Popout {
                     Rectangle {
                         height: 24
                         width: 30
-                        radius: 12
+                        radius: 14
                         color: arrowMa.containsMouse ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.fg, 0.08)
                         border.width: 1
                         border.color: arrowMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
@@ -531,16 +580,16 @@ Popout {
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 8
 
-                            // CPU % Badge
-                            Rectangle {
+                            // CPU % Value
+                            Item {
                                 height: 22
-                                width: 54
-                                radius: 11
-                                color: root.sortBy === "cpu" ? Qt.alpha(Theme.yellow, 0.2) : Qt.alpha(Theme.fg, 0.06)
+                                width: 60
                                 anchors.verticalCenter: parent.verticalCenter
 
                                 Text {
-                                    anchors.centerIn: parent
+                                    anchors.fill: parent
+                                    horizontalAlignment: Text.AlignRight
+                                    verticalAlignment: Text.AlignVCenter
                                     text: (modelData.cpu || "0") + "%"
                                     color: root.sortBy === "cpu" ? Theme.yellow : Qt.alpha(Theme.fg, 0.8)
                                     font.family: Theme.fontFamily
@@ -549,16 +598,16 @@ Popout {
                                 }
                             }
 
-                            // RAM Usage Badge (MB / GB)
-                            Rectangle {
+                            // RAM Usage Value (MB / GB)
+                            Item {
                                 height: 22
-                                width: 72
-                                radius: 11
-                                color: root.sortBy === "ram" ? Qt.alpha(Theme.magenta, 0.2) : Qt.alpha(Theme.fg, 0.06)
+                                width: 80
                                 anchors.verticalCenter: parent.verticalCenter
 
                                 Text {
-                                    anchors.centerIn: parent
+                                    anchors.fill: parent
+                                    horizontalAlignment: Text.AlignRight
+                                    verticalAlignment: Text.AlignVCenter
                                     text: modelData.ram_str || "0 MB"
                                     color: root.sortBy === "ram" ? Theme.magenta : Qt.alpha(Theme.fg, 0.8)
                                     font.family: Theme.fontFamily
@@ -567,21 +616,27 @@ Popout {
                                 }
                             }
 
-                            // PID Badge
-                            Rectangle {
+                            // PID Value
+                            Item {
                                 height: 22
-                                width: 48
-                                radius: 11
-                                color: Qt.alpha(Theme.fg, 0.04)
+                                width: 50
                                 anchors.verticalCenter: parent.verticalCenter
 
                                 Text {
-                                    anchors.centerIn: parent
+                                    anchors.fill: parent
+                                    horizontalAlignment: Text.AlignRight
+                                    verticalAlignment: Text.AlignVCenter
                                     text: modelData.pid || "-"
                                     color: Qt.alpha(Theme.fg, 0.5)
                                     font.family: Theme.fontFamily
-                                    font.pixelSize: 10
+                                    font.pixelSize: 11
                                 }
+                            }
+
+                            // Spacer to align CPU, RAM, and PID with header row (matches 30px sort arrow pill)
+                            Item {
+                                height: 22
+                                width: 30
                             }
                         }
                     }

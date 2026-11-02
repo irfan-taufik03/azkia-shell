@@ -16,15 +16,14 @@ PanelWindow {
     }
     implicitHeight: Sys.barHeight + Sys.barMarginTop + Sys.barMarginBottom
     color: "transparent"
-    visible: !Sys.isLocked && !Wm.isFullscreen
+    visible: !Sys.isLocked && (!Wm.isFullscreen || Sys.isPolkitActive)
 
-    Component { id: launcherComp; Launcher {} }
-    Component { id: tagsComp; Tags {} }
+    Component { id: launcherComp; Launcher { screenName: root.modelData ? root.modelData.name : "" } }
+    Component { id: tagsComp; Tags { screenName: root.modelData ? root.modelData.name : "" } }
     Component { id: titleComp; Title {} }
-    Component { id: clockComp; Clock {} }
+    Component { id: clockComp; Dash {} }
     Component { id: mediaComp; Media {} }
-    Component { id: cpuComp; Cpu {} }
-    Component { id: ramComp; Ram {} }
+    Component { id: systemMonitorComp; SystemMonitor {} }
     Component { id: volumeComp; Volume {} }
     Component { id: brightnessComp; Brightness {} }
     Component { id: batteryComp; Battery {} }
@@ -41,9 +40,11 @@ PanelWindow {
             case "tags": return tagsComp
             case "title": return titleComp
             case "clock": return clockComp
+            case "dash": return clockComp
             case "media": return mediaComp
-            case "cpu": return cpuComp
-            case "ram": return ramComp
+            case "system_monitor": return systemMonitorComp
+            case "cpu": return systemMonitorComp
+            case "ram": return systemMonitorComp
             case "volume": return volumeComp
             case "brightness": return brightnessComp
             case "battery": return batteryComp
@@ -59,16 +60,15 @@ PanelWindow {
 
     Rectangle {
         id: panel
-        anchors.fill: parent
-        anchors.topMargin: Sys.barMarginTop
-        anchors.leftMargin: Sys.barMarginLeft
-        anchors.rightMargin: Sys.barMarginRight
-        anchors.bottomMargin: Sys.barMarginBottom
+        x: Sys.barMarginLeft
+        y: Sys.barMarginTop
+        width: root.width - Sys.barMarginLeft - Sys.barMarginRight
+        height: Sys.barHeight
 
         radius: Sys.barRadius
         color: Sys.customBarBg
-        border.width: 0
-        border.color: Qt.alpha(Theme.accent, 0.35)
+        border.width: 1
+        border.color: Sys.customModuleBorder
 
         Behavior on color { ColorAnimation { duration: 400 } }
         Behavior on border.color { ColorAnimation { duration: 400 } }
@@ -121,6 +121,16 @@ PanelWindow {
                     visible: item ? item.visible : true
                 }
             }
+        }
+
+        // Dimming overlay when Polkit dialog is active (redup tanpa tembus pandang)
+        Rectangle {
+            anchors.fill: parent
+            radius: parent.radius
+            color: "#000000"
+            opacity: Sys.isPolkitActive ? 0.35 : 0.0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: 150 } }
         }
     }
 

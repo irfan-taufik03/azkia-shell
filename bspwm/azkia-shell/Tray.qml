@@ -17,6 +17,54 @@ Rectangle {
     border.width: 1
     border.color: Sys.customModuleBorder
 
+    Timer {
+        id: hoverTimer
+        interval: 150
+        repeat: false
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        hoverEnabled: true
+        acceptedButtons: Qt.NoButton
+        onContainsMouseChanged: {
+            if (containsMouse) hoverTimer.restart()
+            else hoverTimer.stop()
+        }
+
+        PopupWindow {
+            id: tooltipWindow
+
+            anchor.item: root
+            anchor.rect.x: Math.round((root.width - implicitWidth) / 2)
+            anchor.rect.y: Math.round((Sys.barHeight - root.implicitHeight) / 2 + root.implicitHeight + 2)
+
+            implicitWidth: tooltipText.implicitWidth + 24
+            implicitHeight: tooltipText.implicitHeight + 14
+
+            visible: parent.containsMouse && !hoverTimer.running
+            color: "transparent"
+
+            Rectangle {
+                anchors.fill: parent
+                color: Sys.customBarBg
+                border.width: 1
+                border.color: Sys.customModuleBorder
+                radius: 10
+
+                Text {
+                    id: tooltipText
+                    anchors.centerIn: parent
+                    text: "System Tray"
+                    color: Theme.fg
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize
+                    font.bold: true
+                }
+            }
+        }
+    }
+
     Row {
         id: trayRow
         anchors.centerIn: parent

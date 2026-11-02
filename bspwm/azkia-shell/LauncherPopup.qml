@@ -8,17 +8,12 @@ Popout {
     cardWidth: 480
     cardHeight: 390
 
-    function toggle() { visible = !visible }
 
-    IpcHandler {
-        target: "launcher"
-        function toggle(): void { root.toggle() }
-    }
 
     property var apps: []
     property string searchText: ""
     property bool isGrid: false
-    property int selectedIndex: 0
+    property int selectedIndex: -1
 
     readonly property var filteredApps: {
         if (!root.searchText) return root.apps
@@ -29,7 +24,11 @@ Popout {
         })
     }
 
-    onFilteredAppsChanged: root.selectedIndex = 0
+    onFilteredAppsChanged: {
+        root.selectedIndex = -1
+        if (gridView) gridView.contentY = 0
+        if (listView) listView.contentY = 0
+    }
 
     // Fetch desktop apps list from python script
     Process {
@@ -50,15 +49,18 @@ Popout {
 
     onVisibleChanged: {
         if (visible) {
-            root.selectedIndex = 0
-            if (root.apps.length === 0) {
-                fetchProc.running = true
-            }
+            root.selectedIndex = -1
+            if (gridView) gridView.contentY = 0
+            if (listView) listView.contentY = 0
+            fetchProc.running = false
+            fetchProc.running = true
             focusTimer.restart()
         } else {
             Quickshell.execDetached(["python3", Sys.scriptPath("x11_unfocus.py"), "--restore"])
             searchInput.text = ""
             root.searchText = ""
+            if (gridView) gridView.contentY = 0
+            if (listView) listView.contentY = 0
         }
     }
 
@@ -83,8 +85,10 @@ Popout {
 
         // ===== TOP BAR: SEARCH BAR + VIEW MODE BUTTONS =====
         Item {
+            id: topBar
             width: parent.width
             height: 32
+            z: 20
 
             // Search Bar Input
             Rectangle {
@@ -92,7 +96,7 @@ Popout {
                 anchors.right: modeBtnRow.left
                 anchors.rightMargin: 8
                 height: 32
-                radius: 8
+                radius: 12
                 color: Qt.alpha(Theme.fg, 0.06)
                 border.width: 1
                 border.color: searchInput.activeFocus ? Theme.accent : Sys.customModuleBorder
@@ -116,41 +120,66 @@ Popout {
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width - 25
                         color: Theme.fg
+                        selectionColor: Theme.accent
+                        selectedTextColor: Theme.bg
                         font.family: Theme.fontFamily
                         font.pixelSize: 11
+                        selectByMouse: true
                         clip: true
                         onTextChanged: root.searchText = text.toLowerCase().trim()
+
+                        Keys.onEscapePressed: root.close()
 
                         Keys.onDownPressed: {
                             if (root.filteredApps.length > 0) {
                                 const step = root.isGrid ? 4 : 1
-                                root.selectedIndex = Math.min(root.filteredApps.length - 1, root.selectedIndex + step)
+                                if (root.selectedIndex < 0) {
+                                    root.selectedIndex = 0
+                                } else {
+                                    root.selectedIndex = Math.min(root.filteredApps.length - 1, root.selectedIndex + step)
+                                }
                             }
                         }
                         Keys.onUpPressed: {
                             if (root.filteredApps.length > 0) {
                                 const step = root.isGrid ? 4 : 1
-                                root.selectedIndex = Math.max(0, root.selectedIndex - step)
+                                if (root.selectedIndex < 0) {
+                                    root.selectedIndex = root.filteredApps.length - 1
+                                } else {
+                                    root.selectedIndex = Math.max(0, root.selectedIndex - step)
+                                }
                             }
                         }
                         Keys.onRightPressed: {
                             if (root.isGrid && root.filteredApps.length > 0) {
-                                root.selectedIndex = Math.min(root.filteredApps.length - 1, root.selectedIndex + 1)
+                                if (root.selectedIndex < 0) {
+                                    root.selectedIndex = 0
+                                } else {
+                                    root.selectedIndex = Math.min(root.filteredApps.length - 1, root.selectedIndex + 1)
+                                }
                             }
                         }
                         Keys.onLeftPressed: {
                             if (root.isGrid && root.filteredApps.length > 0) {
-                                root.selectedIndex = Math.max(0, root.selectedIndex - 1)
+                                if (root.selectedIndex < 0) {
+                                    root.selectedIndex = 0
+                                } else {
+                                    root.selectedIndex = Math.max(0, root.selectedIndex - 1)
+                                }
                             }
                         }
                         Keys.onReturnPressed: {
                             if (root.selectedIndex >= 0 && root.selectedIndex < root.filteredApps.length) {
                                 root.launchApp(root.filteredApps[root.selectedIndex].exec)
+                            } else if (root.selectedIndex < 0 && root.filteredApps.length > 0) {
+                                root.launchApp(root.filteredApps[0].exec)
                             }
                         }
                         Keys.onEnterPressed: {
                             if (root.selectedIndex >= 0 && root.selectedIndex < root.filteredApps.length) {
                                 root.launchApp(root.filteredApps[root.selectedIndex].exec)
+                            } else if (root.selectedIndex < 0 && root.filteredApps.length > 0) {
+                                root.launchApp(root.filteredApps[0].exec)
                             }
                         }
 
@@ -172,23 +201,30 @@ Popout {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 4
 
+                Timer {
+                    id: modeTooltipTimer
+                    interval: 150
+                    repeat: false
+                }
+
                 // List View Button
                 Rectangle {
+                    id: listBtn
                     width: 32
                     height: 32
-                    radius: 8
+                    radius: 10
                     color: !root.isGrid
-                           ? Qt.alpha(Theme.accent, 0.25)
+                           ? (listBtnMa.containsMouse ? Theme.accentHover : Theme.accent)
                            : listBtnMa.containsMouse ? Qt.alpha(Theme.fg, 0.12) : Qt.alpha(Theme.fg, 0.06)
                     border.width: 1
-                    border.color: !root.isGrid ? Theme.accent : Sys.customModuleBorder
+                    border.color: !root.isGrid ? (listBtnMa.containsMouse ? Theme.accentHover : Theme.accent) : Sys.customModuleBorder
 
                     Behavior on color { ColorAnimation { duration: 150 } }
 
                     Text {
                         anchors.centerIn: parent
                         text: ""
-                        color: !root.isGrid ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                        color: !root.isGrid ? Sys.customBarBg : Qt.alpha(Theme.fg, 0.7)
                         font.family: Theme.fontFamily
                         font.pixelSize: 14
                     }
@@ -197,30 +233,61 @@ Popout {
                         id: listBtnMa
                         anchors.fill: parent
                         hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onEntered: {
+                            if (!gridTooltip.visible) modeTooltipTimer.restart()
+                        }
+                        onExited: modeTooltipTimer.stop()
                         onClicked: {
                             root.isGrid = false
                             focusTimer.restart()
+                        }
+                    }
+
+                    Rectangle {
+                        id: listTooltip
+                        anchors.top: parent.bottom
+                        anchors.topMargin: 8
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: listTooltipText.implicitWidth + 24
+                        height: listTooltipText.implicitHeight + 14
+                        color: Sys.customBarBg
+                        border.width: 1
+                        border.color: Sys.customModuleBorder
+                        radius: 10
+                        z: 999
+                        visible: listBtnMa.containsMouse && !modeTooltipTimer.running
+
+                        Text {
+                            id: listTooltipText
+                            anchors.centerIn: parent
+                            text: "List View"
+                            color: Theme.fg
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSize
+                            font.bold: true
                         }
                     }
                 }
 
                 // Grid View Button
                 Rectangle {
+                    id: gridBtn
                     width: 32
                     height: 32
-                    radius: 8
+                    radius: 10
                     color: root.isGrid
-                           ? Qt.alpha(Theme.accent, 0.25)
+                           ? (gridBtnMa.containsMouse ? Theme.accentHover : Theme.accent)
                            : gridBtnMa.containsMouse ? Qt.alpha(Theme.fg, 0.12) : Qt.alpha(Theme.fg, 0.06)
                     border.width: 1
-                    border.color: root.isGrid ? Theme.accent : Sys.customModuleBorder
+                    border.color: root.isGrid ? (gridBtnMa.containsMouse ? Theme.accentHover : Theme.accent) : Sys.customModuleBorder
 
                     Behavior on color { ColorAnimation { duration: 150 } }
 
                     Text {
                         anchors.centerIn: parent
                         text: "󰕰"
-                        color: root.isGrid ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                        color: root.isGrid ? Sys.customBarBg : Qt.alpha(Theme.fg, 0.7)
                         font.family: Theme.fontFamily
                         font.pixelSize: 14
                     }
@@ -229,9 +296,39 @@ Popout {
                         id: gridBtnMa
                         anchors.fill: parent
                         hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onEntered: {
+                            if (!listTooltip.visible) modeTooltipTimer.restart()
+                        }
+                        onExited: modeTooltipTimer.stop()
                         onClicked: {
                             root.isGrid = true
                             focusTimer.restart()
+                        }
+                    }
+
+                    Rectangle {
+                        id: gridTooltip
+                        anchors.top: parent.bottom
+                        anchors.topMargin: 8
+                        anchors.right: parent.right
+                        width: gridTooltipText.implicitWidth + 24
+                        height: gridTooltipText.implicitHeight + 14
+                        color: Sys.customBarBg
+                        border.width: 1
+                        border.color: Sys.customModuleBorder
+                        radius: 10
+                        z: 999
+                        visible: gridBtnMa.containsMouse && !modeTooltipTimer.running
+
+                        Text {
+                            id: gridTooltipText
+                            anchors.centerIn: parent
+                            text: "Grid View"
+                            color: Theme.fg
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSize
+                            font.bold: true
                         }
                     }
                 }
@@ -253,6 +350,21 @@ Popout {
                 cellHeight: 96
                 currentIndex: root.selectedIndex
 
+                transform: Translate { id: gridSlide; x: 0 }
+
+                onVisibleChanged: {
+                    if (visible) {
+                        gridSlideXAnim.from = 50
+                        gridSlideAnim.restart()
+                    }
+                }
+
+                ParallelAnimation {
+                    id: gridSlideAnim
+                    NumberAnimation { id: gridSlideXAnim; target: gridSlide; property: "x"; from: 50; to: 0; duration: 320; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: gridView; property: "opacity"; from: 0.0; to: 1.0; duration: 250; easing.type: Easing.OutCubic }
+                }
+
                 model: root.filteredApps
 
                 delegate: Item {
@@ -261,15 +373,19 @@ Popout {
                     width: GridView.view.cellWidth
                     height: GridView.view.cellHeight
 
+                    readonly property bool isKeyboardSelected: (root.selectedIndex >= 0) && (index === root.selectedIndex)
+                    readonly property bool isHovered: gridItemMa.containsMouse
+
                     Rectangle {
                         anchors.fill: parent
                         anchors.margins: 4
-                        radius: 8
-                        color: index === root.selectedIndex ? Qt.alpha(Theme.accent, 0.25) : (gridItemMa.containsMouse ? Qt.alpha(Theme.accent, 0.18) : Sys.customModuleBg)
+                        radius: 14
+                        color: isKeyboardSelected ? (isHovered ? Theme.accentHover : Theme.accent) : (isHovered ? Qt.alpha(Theme.accent, 0.18) : Sys.customModuleBg)
                         border.width: 1
-                        border.color: (index === root.selectedIndex || gridItemMa.containsMouse) ? Theme.accent : Sys.customModuleBorder
+                        border.color: isKeyboardSelected ? (isHovered ? Theme.accentHover : Theme.accent) : (isHovered ? Theme.accent : Sys.customModuleBorder)
 
-                        Behavior on color { ColorAnimation { duration: 120 } }
+                        Behavior on color { ColorAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on border.color { ColorAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
                         Column {
                             anchors.centerIn: parent
@@ -298,7 +414,7 @@ Popout {
                                     anchors.centerIn: parent
                                     visible: !modelData || modelData.icon_path === ""
                                     text: "󰀻"
-                                    color: Theme.magenta
+                                    color: isKeyboardSelected ? Sys.customBarBg : Theme.magenta
                                     font.family: Theme.fontFamily
                                     font.pixelSize: 24
                                 }
@@ -308,14 +424,16 @@ Popout {
                             Text {
                                 width: parent.width
                                 text: modelData ? modelData.name : ""
-                                color: index === root.selectedIndex ? Theme.accent : Theme.fg
+                                color: isKeyboardSelected ? Sys.customBarBg : Theme.fg
                                 font.family: Theme.fontFamily
-                                font.pixelSize: 10
-                                font.bold: true
+                                font.pixelSize: 11
+                                font.bold: false
                                 horizontalAlignment: Text.AlignHCenter
                                 elide: Text.ElideRight
                                 maximumLineCount: 2
                                 wrapMode: Text.Wrap
+
+                                Behavior on color { ColorAnimation { duration: 180; easing.type: Easing.OutCubic } }
                             }
                         }
 
@@ -342,6 +460,21 @@ Popout {
                 spacing: 6
                 currentIndex: root.selectedIndex
 
+                transform: Translate { id: listSlide; x: 0 }
+
+                onVisibleChanged: {
+                    if (visible) {
+                        listSlideXAnim.from = -50
+                        listSlideAnim.restart()
+                    }
+                }
+
+                ParallelAnimation {
+                    id: listSlideAnim
+                    NumberAnimation { id: listSlideXAnim; target: listSlide; property: "x"; from: -50; to: 0; duration: 320; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: listView; property: "opacity"; from: 0.0; to: 1.0; duration: 250; easing.type: Easing.OutCubic }
+                }
+
                 model: root.filteredApps
 
                 delegate: Rectangle {
@@ -350,12 +483,17 @@ Popout {
                     required property int index
                     width: ListView.view.width
                     height: 48
-                    radius: 8
-                    color: index === root.selectedIndex ? Qt.alpha(Theme.accent, 0.25) : (listItemMa.containsMouse ? Qt.alpha(Theme.accent, 0.18) : Sys.customModuleBg)
-                    border.width: 1
-                    border.color: (index === root.selectedIndex || listItemMa.containsMouse) ? Theme.accent : Sys.customModuleBorder
+                    radius: 14
 
-                    Behavior on color { ColorAnimation { duration: 120 } }
+                    readonly property bool isKeyboardSelected: (root.selectedIndex >= 0) && (index === root.selectedIndex)
+                    readonly property bool isHovered: listItemMa.containsMouse
+
+                    color: isKeyboardSelected ? (isHovered ? Theme.accentHover : Theme.accent) : (isHovered ? Qt.alpha(Theme.accent, 0.18) : Sys.customModuleBg)
+                    border.width: 1
+                    border.color: isKeyboardSelected ? (isHovered ? Theme.accentHover : Theme.accent) : (isHovered ? Theme.accent : Sys.customModuleBorder)
+
+                    Behavior on color { ColorAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                    Behavior on border.color { ColorAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
                     Row {
                         anchors.fill: parent
@@ -385,7 +523,7 @@ Popout {
                                 anchors.centerIn: parent
                                 visible: !modelData || modelData.icon_path === ""
                                 text: "󰀻"
-                                color: Theme.magenta
+                                color: isKeyboardSelected ? Sys.customBarBg : Theme.magenta
                                 font.family: Theme.fontFamily
                                 font.pixelSize: 20
                             }
@@ -400,21 +538,25 @@ Popout {
                             Text {
                                 width: parent.width
                                 text: modelData ? modelData.name : ""
-                                color: index === root.selectedIndex ? Theme.accent : Theme.fg
+                                color: isKeyboardSelected ? Sys.customBarBg : Theme.fg
                                 font.family: Theme.fontFamily
                                 font.pixelSize: 11
                                 font.bold: true
                                 elide: Text.ElideRight
+
+                                Behavior on color { ColorAnimation { duration: 180; easing.type: Easing.OutCubic } }
                             }
 
                             Text {
                                 width: parent.width
                                 visible: modelData && modelData.comment !== ""
                                 text: modelData ? modelData.comment : ""
-                                color: Qt.alpha(Theme.fg, 0.5)
+                                color: isKeyboardSelected ? Qt.alpha(Sys.customBarBg, 0.75) : Qt.alpha(Theme.fg, 0.5)
                                 font.family: Theme.fontFamily
                                 font.pixelSize: 10
                                 elide: Text.ElideRight
+
+                                Behavior on color { ColorAnimation { duration: 180; easing.type: Easing.OutCubic } }
                             }
                         }
                     }

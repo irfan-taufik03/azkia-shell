@@ -24,7 +24,7 @@ Singleton {
     }
 
     property color bg: "#2e3440"
-    property color altbg: "#3b4252"
+    property color altbg: "#4c566a"
     property color fg: "#e5e9f0"
     property color border: "#bd93f9"
     property color primary: "#bd93f9"
@@ -33,6 +33,7 @@ Singleton {
     property color disabled: "#4c566a"
 
     readonly property color accent: Sys.customColor1
+    readonly property color accentHover: Qt.lighter(accent, 1.13)
     readonly property color selbg: accent
     readonly property color selfg: bg
     readonly property color red: Sys.customColor7
@@ -47,6 +48,12 @@ Singleton {
     readonly property int fontWeight: Font.Bold
     readonly property int fontSize: 13
     readonly property int iconSize: 15
+
+    // Corner Radius Design Tokens
+    readonly property int windowRadius: 16
+    readonly property int cardRadius: 14
+    readonly property int subCardRadius: 14
+    readonly property int buttonRadius: 14
 
     FileView {
         path: root.configDir + "/polybar/colors.ini"

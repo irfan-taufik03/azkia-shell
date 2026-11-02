@@ -8,17 +8,21 @@ Singleton {
     id: root
 
     property bool isLocked: false
+    property bool isPolkitActive: false
     property bool autoLockEnabled: true
     property int autoLockTimeout: 180
     property int autoSleepTimeout: 120
+    property bool autoSuspendEnabled: false
+    property int autoSuspendTimeout: 600
     property string currentWallpaper: ""
+
 
     // Dynamic Bar & Module Styling Properties
             property var leftModules: ["launcher", "tags", "title"]
-    property var centerModules: ["clock", "media"]
-    property var rightModules: ["cpu", "ram", "volume", "brightness", "battery", "screenshot", "bell", "clipboard", "control_center", "tray", "power_button"]
-    property var allAvailableModules: ["launcher", "tags", "title", "clock", "media", "cpu", "ram", "volume", "brightness", "battery", "screenshot", "bell", "clipboard", "control_center", "tray", "power_button"]
-    property int barRadius: 12
+    property var centerModules: ["clock"]
+    property var rightModules: ["system_monitor", "volume", "brightness", "battery", "screenshot", "bell", "clipboard", "control_center", "tray", "power_button"]
+    property var allAvailableModules: ["launcher", "tags", "title", "clock", "media", "system_monitor", "volume", "brightness", "battery", "screenshot", "bell", "clipboard", "control_center", "tray", "power_button"]
+    property int barRadius: 13
     property int moduleRadius: 10
     property int barHeight: 34
     property int launcherIconSize: 21
@@ -36,10 +40,10 @@ Singleton {
         Quickshell.execDetached(["bspc", "config", "top_padding", totalTop.toString()])
     }
     property color customBarBg: Theme.bg
-    property color customModuleBg: Qt.alpha(Theme.fg, 0.09)
-    property color customModuleHoverBg: Qt.alpha(Theme.fg, 0.20)
+    property color customModuleBg: "#3b4252"
+    property color customModuleHoverBg: "#454d60"
     property color customModuleActiveBg: Qt.alpha(Theme.accent, 0.22)
-    property color customModuleBorder: Qt.alpha(Theme.fg, 0.18)
+    property color customModuleBorder: Theme.altbg
     property color customModuleIconColor: customColor1
     property color customColor1: "#c6a0f6"
     property color customColor2: "#8aadf4"
@@ -93,6 +97,8 @@ Singleton {
             if (data.autoLockEnabled !== undefined) root.autoLockEnabled = data.autoLockEnabled
             if (data.autoLockTimeout !== undefined) root.autoLockTimeout = data.autoLockTimeout
             if (data.autoSleepTimeout !== undefined) root.autoSleepTimeout = data.autoSleepTimeout
+            if (data.autoSuspendEnabled !== undefined) root.autoSuspendEnabled = data.autoSuspendEnabled
+            if (data.autoSuspendTimeout !== undefined) root.autoSuspendTimeout = data.autoSuspendTimeout
             if (data.leftModules && Array.isArray(data.leftModules)) root.leftModules = data.leftModules
             if (data.centerModules && Array.isArray(data.centerModules)) root.centerModules = data.centerModules
             if (data.rightModules && Array.isArray(data.rightModules)) root.rightModules = data.rightModules
@@ -100,6 +106,7 @@ Singleton {
             if (data.customModuleBg) root.customModuleBg = data.customModuleBg
             if (data.customModuleHoverBg) root.customModuleHoverBg = data.customModuleHoverBg
             if (data.customModuleActiveBg) root.customModuleActiveBg = data.customModuleActiveBg
+            if (data.customModuleBorder) root.customModuleBorder = data.customModuleBorder
             if (data.customModuleIconColor) root.customModuleIconColor = data.customModuleIconColor
             if (data.customColor1) root.customColor1 = data.customColor1
             if (data.customColor2) root.customColor2 = data.customColor2
@@ -165,10 +172,12 @@ Singleton {
             "launcher": "Application Launcher",
             "tags": "Workspace Tags",
             "title": "Active Window Title",
-            "clock": "Digital Clock",
+            "clock": "Dash",
+            "dash": "Dash",
             "media": "Media Player Widget",
-            "cpu": "CPU Monitor",
-            "ram": "RAM Monitor",
+            "system_monitor": "System Monitor",
+            "cpu": "System Monitor",
+            "ram": "System Monitor",
             "volume": "Volume Control",
             "brightness": "Brightness Control",
             "battery": "Battery Monitor",
@@ -189,7 +198,8 @@ Singleton {
             "title": "󰖲",
             "clock": "󰥔",
             "media": "󰎈",
-            "cpu": "󰍛",
+            "system_monitor": "󰻠",
+            "cpu": "󰻠",
             "ram": "󰘚",
             "volume": "󰕾",
             "brightness": "󰃠",
@@ -216,8 +226,8 @@ Singleton {
 
     function resetModulePositions() {
         root.leftModules = ["launcher", "tags", "title"]
-        root.centerModules = ["clock", "media"]
-        root.rightModules = ["cpu", "ram", "volume", "brightness", "battery", "screenshot", "bell", "clipboard", "control_center", "tray", "power_button"]
+        root.centerModules = ["clock"]
+        root.rightModules = ["cpu", "volume", "brightness", "battery", "screenshot", "bell", "clipboard", "control_center", "tray", "power_button"]
         root.saveAppearance()
     }
 
@@ -367,6 +377,16 @@ function setBarRadius(val) {
         root.saveAppearance()
     }
 
+    function setAutoSuspendEnabled(val) {
+        root.autoSuspendEnabled = val
+        root.saveAppearance()
+    }
+
+    function setAutoSuspendTimeout(val) {
+        root.autoSuspendTimeout = Math.max(60, Math.min(7200, Math.round(val)))
+        root.saveAppearance()
+    }
+
     function saveAppearance() {
         const data = {
             userAvatar: root.userAvatar,
@@ -383,6 +403,8 @@ function setBarRadius(val) {
             autoLockEnabled: root.autoLockEnabled,
             autoLockTimeout: root.autoLockTimeout,
             autoSleepTimeout: root.autoSleepTimeout,
+            autoSuspendEnabled: root.autoSuspendEnabled,
+            autoSuspendTimeout: root.autoSuspendTimeout,
             leftModules: root.leftModules,
             centerModules: root.centerModules,
             rightModules: root.rightModules,
@@ -390,6 +412,7 @@ function setBarRadius(val) {
             customModuleBg: root.customModuleBg.toString(),
             customModuleHoverBg: root.customModuleHoverBg.toString(),
             customModuleActiveBg: root.customModuleActiveBg.toString(),
+            customModuleBorder: root.customModuleBorder.toString(),
             customModuleIconColor: root.customModuleIconColor.toString(),
             customColor1: root.customColor1.toString(),
             customColor2: root.customColor2.toString(),
@@ -446,16 +469,71 @@ function setBarRadius(val) {
     property real cpu: 0
     property real mem: 0
     property real disk: 0
+    property real swap: 0
     property string diskText: ""
     property string uptimeText: ""
     property string userName: ""
+    property string distroName: "Linux"
+
+    readonly property var distroMap: [
+        { key: "fedora",   name: "Fedora",       icon: "\uf30a", color: "#51a2da" },
+        { key: "debian",   name: "Debian",       icon: "\uf306", color: "#bd93f9" },
+        { key: "cachy",    name: "CachyOS",      icon: "\uf303", color: "#00d084" },
+        { key: "arch",     name: "Arch Linux",   icon: "\uf303", color: "#1793d1" },
+        { key: "ubuntu",   name: "Ubuntu",       icon: "\uf31b", color: "#e95420" },
+        { key: "manjaro",  name: "Manjaro",      icon: "\uf312", color: "#35bf5c" },
+        { key: "mint",     name: "Linux Mint",   icon: "\uf30e", color: "#87cf3e" },
+        { key: "nixos",    name: "NixOS",        icon: "\uf313", color: "#7ebae4" },
+        { key: "gentoo",   name: "Gentoo",       icon: "\uf30d", color: "#bd93f9" },
+        { key: "suse",     name: "openSUSE",     icon: "\uf314", color: "#73ba25" },
+        { key: "pop",      name: "Pop!_OS",      icon: "\uf32a", color: "#48b9c7" },
+        { key: "void",     name: "Void Linux",   icon: "\uf32e", color: "#478061" },
+        { key: "kali",     name: "Kali Linux",   icon: "\uf327", color: "#557cda" },
+        { key: "alpine",   name: "Alpine Linux", icon: "\uf300", color: "#0d597f" }
+    ]
+
+    function _getDistroEntry(raw) {
+        if (!raw) return null
+        const d = raw.toLowerCase()
+        return distroMap.find(item => d.includes(item.key)) || null
+    }
+
+    function getShortDistro(raw) {
+        const entry = _getDistroEntry(raw)
+        if (entry) return entry.name
+        return raw ? raw.split(/\s+GNU\/Linux|\s+\d|\s+\(/i)[0].trim() || "Linux" : "Linux"
+    }
+
+    function getDistroIcon(raw) {
+        const entry = _getDistroEntry(raw)
+        return entry ? entry.icon : "\uf17c"
+    }
+
+    function getDistroColor(raw) {
+        const entry = _getDistroEntry(raw)
+        return entry ? entry.color : "#51a2da"
+    }
+
+    function formatUptime(raw) {
+        if (!raw) return "0m"
+        return raw.replace(/^up\s+/, "")
+                  .replace(/ hours?/, "h")
+                  .replace(/ minutes?/, "m")
+                  .replace(/ days?/, "d")
+                  .replace(/,/g, "")
+    }
+
     property bool btEnabled: false
     property string btStatus: "No devices"
+    property bool wifiEnabled: true
     property bool hasBattery: false
     property real battery: 0
     property bool batteryCharging: false
     property string netName: ""
     property string netType: ""
+    property string wifiName: ""
+    property string _lastWifiName: ""
+    property bool _wifiInitialized: false
     property bool vpnOn: false
     property string vpnName: ""
     property string lastActivePlayerIdentity: ""
@@ -477,7 +555,8 @@ function setBarRadius(val) {
         }
     }
 
-    readonly property string netIcon: vpnOn ? "󰦝"
+    readonly property string netIcon: !wifiEnabled && (netType === "" || netType.indexOf("wireless") !== -1) ? "󰤮"
+                                    : vpnOn ? "󰦝"
                                     : netType.indexOf("wireless") !== -1 ? "󰤨"
                                     : netType.indexOf("ethernet") !== -1 ? "󰈀"
                                     : "󰤭"
@@ -496,7 +575,7 @@ function setBarRadius(val) {
     Process {
         id: statProc
         command: ["sh", "-c",
-            "head -1 /proc/stat; grep -E '^(MemTotal|MemAvailable)' /proc/meminfo; df -h / | tail -1; uptime -p; whoami; bluetoothctl show 2>/dev/null | grep 'Powered:'; " +
+            "head -1 /proc/stat; grep -E '^(MemTotal|MemAvailable|SwapTotal|SwapFree)' /proc/meminfo; df -h / | tail -1; uptime -p; whoami; grep '^PRETTY_NAME=' /etc/os-release 2>/dev/null; bluetoothctl show 2>/dev/null | grep 'Powered:'; echo \"WIFI:$(nmcli radio wifi 2>/dev/null)\"; " +
             "for b in /sys/class/power_supply/BAT*; do [ -r \"$b/capacity\" ] && echo \"BAT $(cat \"$b/capacity\") $(cat \"$b/status\")\" && break; done; true"]
         stdout: StdioCollector {
             onStreamFinished: root.parseStat(text)
@@ -505,7 +584,7 @@ function setBarRadius(val) {
 
     function parseStat(t) {
         const lines = t.trim().split("\n")
-        let memTotal = 0, memAvail = 0, foundBattery = false
+        let memTotal = 0, memAvail = 0, swapTotal = 0, swapFree = 0, foundBattery = false
         for (const line of lines) {
             const l = line.trim()
             if (l.startsWith("cpu ")) {
@@ -521,6 +600,10 @@ function setBarRadius(val) {
                 memTotal = parseInt(l.split(/\s+/)[1])
             } else if (l.startsWith("MemAvailable:")) {
                 memAvail = parseInt(l.split(/\s+/)[1])
+            } else if (l.startsWith("SwapTotal:")) {
+                swapTotal = parseInt(l.split(/\s+/)[1])
+            } else if (l.startsWith("SwapFree:")) {
+                swapFree = parseInt(l.split(/\s+/)[1])
             } else if (l.startsWith("BAT ")) {
                 const parts = l.split(/\s+/)
                 foundBattery = true
@@ -528,9 +611,17 @@ function setBarRadius(val) {
                 batteryCharging = parts[2] === "Charging"
             } else if (l.startsWith("up ")) {
                 uptimeText = l
+            } else if (l.startsWith("PRETTY_NAME=")) {
+                const parts = l.split("=")
+                if (parts.length >= 2) {
+                    const raw = parts[1].replace(/"/g, "").replace(/'/g, "")
+                    distroName = getShortDistro(raw)
+                }
             } else if (l.includes("Powered:")) {
                 btEnabled = l.includes("yes")
                 btStatus = btEnabled ? "Enabled" : "Disabled"
+            } else if (l.startsWith("WIFI:")) {
+                wifiEnabled = l.includes("enabled")
             } else if (l.startsWith("/")) {
                 // df output e.g. /dev/nvme0n1p2 238G 54G 181G 23% /
                 const parts = l.split(/\s+/)
@@ -547,22 +638,47 @@ function setBarRadius(val) {
         }
         if (memTotal > 0)
             mem = 100 * (1 - memAvail / memTotal)
+        if (swapTotal > 0)
+            swap = 100 * (1 - swapFree / swapTotal)
+        else
+            swap = 0
         hasBattery = foundBattery
     }
 
     function toggleBluetooth() {
-        Quickshell.execDetached(["sh", "-c", "if bluetoothctl show | grep -q 'Powered: yes'; then bluetoothctl power off; else bluetoothctl power on; fi"])
+        Quickshell.execDetached(["sh", "-c", "if bluetoothctl show 2>/dev/null | grep -q 'Powered: yes'; then bluetoothctl power off; else bluetoothctl power on; fi"])
         btRefresh.restart()
     }
 
     Timer {
         id: btRefresh
-        interval: 500
-        onTriggered: statProc.running = true
+        interval: 600
+        onTriggered: {
+            statProc.running = false
+            statProc.running = true
+        }
+    }
+
+    function toggleWifi() {
+        Quickshell.execDetached(["sh", "-c", "if [ \"$(nmcli radio wifi 2>/dev/null)\" = \"enabled\" ]; then nmcli radio wifi off; else nmcli radio wifi on; fi"])
+        wifiRefresh.restart()
+    }
+
+    Timer {
+        id: wifiRefresh
+        interval: 600
+        onTriggered: {
+            statProc.running = false
+            statProc.running = true
+            netProc.running = false
+            netProc.running = true
+        }
     }
 
     property bool capsOn: false
     property bool dndOn: false
+    property bool caffeineOn: false
+    property bool eyeProtectionOn: false
     property var historyNotifications: []
     readonly property int notifCount: historyNotifications.length
 
@@ -573,23 +689,119 @@ function setBarRadius(val) {
         const app = notif.appName || "Notification"
         const title = notif.summary || "Notification"
         const body = notif.body || ""
+        const desktopEntry = notif.desktopEntry || ""
         const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        const hintsObj = notif.hints || {}
+        const notifId = (notif.id !== undefined && notif.id !== null) ? notif.id.toString() : (Date.now() + Math.random()).toString()
+
+        let directWid = ""
+        if (hintsObj["window-id"] || hintsObj["window_id"] || hintsObj["wid"] || hintsObj["x-kde-originating-window-id"] || hintsObj["x-canonical-private-window-id"]) {
+            const rawWid = hintsObj["window-id"] || hintsObj["window_id"] || hintsObj["wid"] || hintsObj["x-kde-originating-window-id"] || hintsObj["x-canonical-private-window-id"]
+            directWid = String(rawWid)
+        }
+
+        const expireTimeout = (typeof notif.expireTimeout === "number" && notif.expireTimeout > 0)
+            ? notif.expireTimeout
+            : ((typeof notif.timeout === "number" && notif.timeout > 0) ? notif.timeout : 0)
 
         const item = {
-            id: notif.id || (Date.now() + Math.random()),
+            id: notifId,
             appName: app,
             appIcon: icon,
             summary: title,
             body: body,
+            desktopEntry: desktopEntry,
             time: timeStr,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            expireTimeout: expireTimeout,
+            hints: hintsObj,
+            targetWid: directWid,
+            _notifRef: notif
         }
 
         historyNotifications = [item, ...historyNotifications].slice(0, 15)
         notificationReceived(item)
+
+        Quickshell.execDetached([
+            "python3", root.scriptPath("open_notif_app.py"),
+            "--register",
+            notifId,
+            app,
+            desktopEntry,
+            title,
+            body,
+            JSON.stringify(hintsObj)
+        ])
+    }
+
+    function activateNotification(notifItem) {
+        if (!notifItem) return
+        
+        try {
+            if (notifItem._notifRef) {
+                const notif = notifItem._notifRef
+                const acts = notif.actions
+                let invoked = false
+                if (acts && acts.length > 0) {
+                    for (let i = 0; i < acts.length; i++) {
+                        const act = acts[i]
+                        if (act && (act.identifier === "default" || act.id === "default")) {
+                            if (typeof act.invoke === "function") {
+                                act.invoke()
+                                invoked = true
+                            }
+                            break
+                        }
+                    }
+                    if (!invoked && acts[0] && typeof acts[0].invoke === "function") {
+                        acts[0].invoke()
+                        invoked = true
+                    }
+                }
+            }
+        } catch(e) {}
+
+        const notifId = (notifItem.id !== undefined && notifItem.id !== null) ? notifItem.id.toString() : ""
+        const appName = notifItem.appName || ""
+        const desktopEntry = notifItem.desktopEntry || ""
+        const summary = notifItem.summary || ""
+        const body = notifItem.body || ""
+        const hintsStr = JSON.stringify(notifItem.hints || {})
+        if (appName.toLowerCase().includes("shalat") || summary.toLowerCase().includes("shalat")) {
+            Quickshell.execDetached(["qs", "-p", root.configDir, "ipc", "call", "prayer", "toggle"])
+            root.removeNotification(notifItem.id)
+            return
+        }
+
+        Quickshell.execDetached([
+            "python3", root.scriptPath("open_notif_app.py"),
+            "--focus",
+            notifId,
+            appName,
+            desktopEntry,
+            summary,
+            body,
+            hintsStr,
+            targetWid
+        ])
+
+        root.removeNotification(notifItem.id)
     }
 
     function removeNotification(id) {
+        const notif = historyNotifications.find(n => n.id === id)
+        if (notif && notif._notifRef) {
+            try {
+                if (typeof notif._notifRef.dismiss === "function") {
+                    notif._notifRef.dismiss()
+                } else {
+                    notif._notifRef.tracked = false
+                }
+            } catch(e) {}
+        }
+        if (id !== undefined && id !== null) {
+            Quickshell.execDetached(["python3", root.scriptPath("open_notif_app.py"), "--remove", id.toString()])
+        }
         historyNotifications = historyNotifications.filter(n => n.id !== id)
     }
 
@@ -599,6 +811,26 @@ function setBarRadius(val) {
 
     function toggleDnd() {
         dndOn = !dndOn
+    }
+
+    function toggleCaffeine() {
+        caffeineOn = !caffeineOn
+        if (caffeineOn) {
+            Quickshell.execDetached(["notify-send", "-a", "Azkia Shell", "Keep Awake Enabled", "Screen sleep & auto-lock suspended."])
+        } else {
+            Quickshell.execDetached(["notify-send", "-a", "Azkia Shell", "Keep Awake Disabled", "Normal power management resumed."])
+        }
+    }
+
+    function toggleEyeProtection() {
+        eyeProtectionOn = !eyeProtectionOn
+        if (eyeProtectionOn) {
+            Quickshell.execDetached(["sh", "-c", "for mon in $(xrandr --query | awk '/ connected/{print $1}'); do xrandr --output $mon --gamma 1.0:0.85:0.7; done"])
+            Quickshell.execDetached(["notify-send", "-a", "Azkia Shell", "Eye Protection Enabled", "Warm color filter activated."])
+        } else {
+            Quickshell.execDetached(["sh", "-c", "for mon in $(xrandr --query | awk '/ connected/{print $1}'); do xrandr --output $mon --gamma 1.0:1.0:1.0; done"])
+            Quickshell.execDetached(["notify-send", "-a", "Azkia Shell", "Eye Protection Disabled", "Normal color profile restored."])
+        }
     }
 
     Timer {
@@ -619,12 +851,48 @@ function setBarRadius(val) {
         }
     }
 
+    function refreshNet() {
+        netProc.running = false
+        netProc.running = true
+    }
+
     Timer {
-        interval: 10000
+        interval: 5000
         running: true
         repeat: true
         triggeredOnStart: true
-        onTriggered: netProc.running = true
+        onTriggered: root.refreshNet()
+    }
+
+    Process {
+        id: netMonitorProc
+        command: ["nmcli", "monitor"]
+        running: true
+        stdout: SplitParser {
+            onRead: line => {
+                netDebounceTimer.restart()
+            }
+        }
+        onExited: (code, status) => {
+            netMonitorRestartTimer.restart()
+        }
+    }
+
+    Timer {
+        id: netDebounceTimer
+        interval: 400
+        repeat: false
+        onTriggered: root.refreshNet()
+    }
+
+    Timer {
+        id: netMonitorRestartTimer
+        interval: 3000
+        repeat: false
+        onTriggered: {
+            netMonitorProc.running = false
+            netMonitorProc.running = true
+        }
     }
 
     // primary transport + vpn tracked separately: a vpn/wireguard/tun
@@ -635,6 +903,7 @@ function setBarRadius(val) {
         stdout: StdioCollector {
             onStreamFinished: {
                 let name = "", type = "", vName = "", vOn = false
+                let activeWifi = ""
                 for (const line of text.trim().split("\n")) {
                     const i = line.lastIndexOf(":")
                     if (i <= 0)
@@ -649,11 +918,28 @@ function setBarRadius(val) {
                         name = n
                         type = t
                     }
+                    if (t === "802-11-wireless" || t === "wifi" || t.indexOf("wireless") !== -1) {
+                        activeWifi = n
+                    }
                 }
                 root.netName = name
                 root.netType = type
                 root.vpnOn = vOn
                 root.vpnName = vName
+                root.wifiName = activeWifi
+
+                if (!root._wifiInitialized) {
+                    root._lastWifiName = activeWifi
+                    root._wifiInitialized = true
+                } else {
+                    if (activeWifi !== "" && activeWifi !== root._lastWifiName) {
+                        Quickshell.execDetached(["notify-send", "-a", "Wi-Fi", "-i", "network-wireless-connected", "Wi-Fi Connected", "Connected to " + activeWifi])
+                        root._lastWifiName = activeWifi
+                    } else if (activeWifi === "" && root._lastWifiName !== "") {
+                        Quickshell.execDetached(["notify-send", "-a", "Wi-Fi", "-i", "network-wireless-disconnected", "Wi-Fi Disconnected", "Disconnected from " + root._lastWifiName])
+                        root._lastWifiName = ""
+                    }
+                }
             }
         }
     }
@@ -666,6 +952,16 @@ function setBarRadius(val) {
         updateLockStateProc.running = true
     }
 
+    onCaffeineOnChanged: root.syncCaffeineState()
+
+    function syncCaffeineState() {
+        if (caffeineOn) {
+            Quickshell.execDetached(["sh", "-c", "echo 1 > /tmp/azkia_caffeine_state; xset s off -dpms; systemd-inhibit --what=idle:sleep:shutdown --who='Azkia Shell' --why='Keep Awake' sleep infinity & echo $! > /tmp/azkia_caffeine_inhibit.pid"])
+        } else {
+            Quickshell.execDetached(["sh", "-c", "echo 0 > /tmp/azkia_caffeine_state; xset s on +dpms; if [ -f /tmp/azkia_caffeine_inhibit.pid ]; then kill $(cat /tmp/azkia_caffeine_inhibit.pid) 2>/dev/null; rm -f /tmp/azkia_caffeine_inhibit.pid; fi; pkill -f 'Keep Awake' 2>/dev/null"])
+        }
+    }
+
     Process {
         id: updateLockStateProc
     }
@@ -674,11 +970,82 @@ function setBarRadius(val) {
         id: idleDaemonProc
         command: ["python3", Sys.scriptPath("idle_daemon.py")]
         running: true
+        onExited: (code, status) => {
+            idleRestartTimer.restart()
+        }
+    }
+
+    Timer {
+        id: idleRestartTimer
+        interval: 2000
+        repeat: false
+        onTriggered: {
+            idleDaemonProc.running = false
+            idleDaemonProc.running = true
+        }
+    }
+
+    Process {
+        id: prayerDaemonProc
+        command: ["python3", Sys.scriptPath("prayer_service.py"), "--daemon"]
+        running: true
+        onExited: (code, status) => {
+            prayerRestartTimer.restart()
+        }
+    }
+
+    Timer {
+        id: prayerRestartTimer
+        interval: 3000
+        repeat: false
+        onTriggered: {
+            prayerDaemonProc.running = false
+            prayerDaemonProc.running = true
+        }
+    }
+
+    Process {
+        id: audioPlayerDaemonProc
+        command: ["python3", Sys.scriptPath("azkia_audio_player.py"), "--daemon"]
+        running: true
+        onExited: (code, status) => {
+            audioRestartTimer.restart()
+        }
+    }
+
+    Timer {
+        id: audioRestartTimer
+        interval: 2000
+        repeat: false
+        onTriggered: {
+            audioPlayerDaemonProc.running = false
+            audioPlayerDaemonProc.running = true
+        }
+    }
+
+    Process {
+        id: polkitAgentProc
+        command: ["python3", Sys.scriptPath("polkit_agent.py"), "--daemon"]
+        running: true
+        onExited: (code, status) => {
+            polkitRestartTimer.restart()
+        }
+    }
+
+    Timer {
+        id: polkitRestartTimer
+        interval: 2000
+        repeat: false
+        onTriggered: {
+            polkitAgentProc.running = false
+            polkitAgentProc.running = true
+        }
     }
 
     Component.onCompleted: {
         root.parseFehbg()
         root.syncLockState()
+        root.syncCaffeineState()
         root.updateBspwmPadding()
     }
 }

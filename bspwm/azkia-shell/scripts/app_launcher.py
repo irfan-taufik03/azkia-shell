@@ -34,6 +34,8 @@ ICON_CACHE = {}
 def find_icon(icon_name, current_theme):
     if not icon_name:
         return ""
+    if icon_name.startswith("~"):
+        icon_name = os.path.expanduser(icon_name)
     if os.path.isabs(icon_name) and os.path.exists(icon_name):
         return icon_name
 
@@ -47,6 +49,8 @@ def find_icon(icon_name, current_theme):
         f"/usr/share/icons/{current_theme.lower()}",
         os.path.expanduser(f"~/.icons/{current_theme}"),
         os.path.expanduser(f"~/.local/share/icons/{current_theme}"),
+        "/var/lib/flatpak/exports/share/icons",
+        os.path.expanduser("~/.local/share/flatpak/exports/share/icons"),
         "/usr/share/icons/hicolor",
         "/usr/share/pixmaps"
     ]
@@ -80,8 +84,10 @@ def scan_apps():
     theme = get_current_icon_theme()
     dirs = [
         "/usr/share/applications",
+        "/usr/local/share/applications",
         os.path.expanduser("~/.local/share/applications"),
-        "/var/lib/flatpak/exports/share/applications"
+        "/var/lib/flatpak/exports/share/applications",
+        os.path.expanduser("~/.local/share/flatpak/exports/share/applications"),
     ]
 
     apps_map = {}

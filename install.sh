@@ -152,7 +152,7 @@ install_debian() {
         bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty xfce4-terminal xterm fastfetch git fish starship
         xclip xdotool x11-utils x11-xserver-utils pamixer playerctl wireplumber pipewire-audio
         brightnessctl upower power-profiles-daemon bluez bluez-tools bluez-obexd libspa-0.2-bluetooth network-manager
-        python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 libx11-6 libxss1
+        python3 python3-gi python3-gi-cairo python3-dbus polkitd gir1.2-gtk-3.0 libx11-6 libxss1
         libqt6qml6 libqt6quick6 libqt6quickcontrols2-6 libqt6svg6 qml6-module-qtquick-controls
         qml6-module-qtquick-layouts qml6-module-qtquick-templates qml6-module-qtquick-shapes
         qml6-module-qtquick-window qml6-module-qtsvg qml6-module-qt5compat-graphicaleffects qml6-module-qtquick-effects qt6-gtk-platformtheme qt6-style-kvantum qt6ct
@@ -208,7 +208,7 @@ install_arch() {
         base-devel bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxsession xfce4-power-manager kitty xfce4-terminal xterm fastfetch git fish starship
         xclip xdotool xorg-xprop xorg-xset xorg-xrandr xorg-xsetroot pamixer playerctl wireplumber pipewire-pulse
         brightnessctl upower power-profiles-daemon bluez bluez-utils networkmanager
-        python python-gobject gtk3 libx11 libxss
+        python python-gobject python-dbus polkit gtk3 libx11 libxss
         qt6-declarative qt6-svg qt6-5compat kvantum qt6ct
         ttf-font-awesome noto-fonts-emoji inter-font ttf-roboto ttf-jetbrains-mono
     )
@@ -262,7 +262,7 @@ install_fedora() {
         bspwm sxhkd picom feh thunar thunar-archive-plugin flameshot cava btop lxpolkit xfce4-power-manager kitty xfce4-terminal xterm fastfetch git fish starship
         xclip xdotool xprop xset xrandr xsetroot pamixer playerctl wireplumber pipewire
         brightnessctl upower power-profiles-daemon bluez bluez-tools NetworkManager
-        python3 python3-gobject gtk3 libX11 libXScrnSaver
+        python3 python3-gobject python3-dbus polkit gtk3 libX11 libXScrnSaver
         qt6-qtdeclarative qt6-qtsvg qt6-qt5compat kvantum-qt6 qt6ct
         fontawesome-fonts google-noto-emoji-fonts google-roboto-fonts jetbrains-mono-fonts
     )
@@ -397,9 +397,41 @@ deploy_config() {
     log_info "Setting executable permissions..."
     chmod +x "$TARGET_DIR/bspwmrc"
     chmod +x "$TARGET_DIR/bspwmrc.default"
-    chmod +x "$TARGET_DIR/scripts/"*.sh 2>/dev/null || true
+    chmod +x "$TARGET_DIR/scripts/"*.sh "$TARGET_DIR/scripts/layout" 2>/dev/null || true
     chmod +x "$TARGET_DIR/azkia-shell/scripts/"*.py 2>/dev/null || true
     chmod +x "$TARGET_DIR/azkia-shell/scripts/"*.sh 2>/dev/null || true
+    chmod +x "$TARGET_DIR/azkia-shell/scripts/"azkia-* 2>/dev/null || true
+    chmod +x "$TARGET_DIR/azkia-shell/bin/"* 2>/dev/null || true
+    chmod +x "$TARGET_DIR/azkia-greeter/"*.sh 2>/dev/null || true
+    chmod +x "$TARGET_DIR/azkia-greeter/scripts/"*.sh 2>/dev/null || true
+    chmod +x "$TARGET_DIR/azkia-greeter/scripts/"*.py 2>/dev/null || true
+
+    # Deploy desktop entries for integrated Azkia applications (.desktop files)
+    APPS_DIR="$HOME/.local/share/applications"
+    mkdir -p "$APPS_DIR"
+    if [ -d "$TARGET_DIR/azkia-shell/applications" ]; then
+        log_info "Deploying Azkia applications to $APPS_DIR..."
+        for df in "$TARGET_DIR/azkia-shell/applications"/*.desktop; do
+            [ -f "$df" ] || continue
+            df_name=$(basename "$df")
+            cp "$df" "$APPS_DIR/$df_name"
+            sed -i "s|/home/[^/]*|$HOME|g" "$APPS_DIR/$df_name"
+        done
+        command -v update-desktop-database &>/dev/null && update-desktop-database "$APPS_DIR" 2>/dev/null || true
+    fi
+
+    # Deploy systemd user services and timers (Hourly Movement Reminder)
+    SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
+    if [ -d "$TARGET_DIR/systemd" ]; then
+        log_info "Deploying user systemd services and timers..."
+        mkdir -p "$SYSTEMD_USER_DIR"
+        cp -r "$TARGET_DIR/systemd/"* "$SYSTEMD_USER_DIR/"
+        sed -i "s|/home/[^/]*|$HOME|g" "$SYSTEMD_USER_DIR/"* 2>/dev/null || true
+        if command -v systemctl &>/dev/null; then
+            systemctl --user daemon-reload 2>/dev/null || true
+            systemctl --user enable --now hourly-movement-reminder.timer 2>/dev/null || true
+        fi
+    fi
 
     # Deploy Kitty configuration to ~/.config/kitty/
     KITTY_TARGET="$HOME/.config/kitty"
@@ -473,20 +505,40 @@ deploy_fonts() {
 }
 
 setup_gtk_theme() {
-    log_info "Deploying and applying Nordic-darker GTK theme and Sweet-cursors cursor..."
+    log_info "Deploying and applying Nora-gtk-mauve GTK theme, casauna icon theme, and Sweet-cursors cursor..."
 
     # Create target theme & icon directories
     mkdir -p "$HOME/.themes" "$HOME/.icons" "$HOME/.local/share/themes" "$HOME/.local/share/icons"
 
-    # Copy GTK Theme
-    if [ -d "$SCRIPT_DIR/themes/Nordic-darker" ]; then
+    # Copy GTK Theme (prefer Nora-gtk-mauve, fallback to Nordic-darker)
+    THEME_NAME="Nora-gtk-mauve"
+    if [ -d "$SCRIPT_DIR/themes/Nora-gtk-mauve" ]; then
+        cp -r "$SCRIPT_DIR/themes/Nora-gtk-mauve" "$HOME/.themes/"
+        cp -r "$SCRIPT_DIR/themes/Nora-gtk-mauve" "$HOME/.local/share/themes/"
+        log_success "Copied Nora-gtk-mauve theme to ~/.themes/ and ~/.local/share/themes/"
+    elif [ -d "$SCRIPT_DIR/themes/Nordic-darker" ]; then
+        THEME_NAME="Nordic-darker"
         cp -r "$SCRIPT_DIR/themes/Nordic-darker" "$HOME/.themes/"
         cp -r "$SCRIPT_DIR/themes/Nordic-darker" "$HOME/.local/share/themes/"
         log_success "Copied Nordic-darker theme to ~/.themes/ and ~/.local/share/themes/"
     fi
 
+    # Extract or Copy casauna Icon Theme
+    ICON_NAME="casauna"
+    if [ -f "$SCRIPT_DIR/icons/casauna.tar.xz" ]; then
+        log_info "Extracting casauna icon theme..."
+        tar -xf "$SCRIPT_DIR/icons/casauna.tar.xz" -C "$HOME/.icons/" 2>/dev/null || true
+        tar -xf "$SCRIPT_DIR/icons/casauna.tar.xz" -C "$HOME/.local/share/icons/" 2>/dev/null || true
+        log_success "Extracted casauna.tar.xz to ~/.icons/ and ~/.local/share/icons/"
+    elif [ -d "$SCRIPT_DIR/icons/casauna" ]; then
+        cp -r "$SCRIPT_DIR/icons/casauna" "$HOME/.icons/"
+        cp -r "$SCRIPT_DIR/icons/casauna" "$HOME/.local/share/icons/"
+        log_success "Copied casauna folder to ~/.icons/ and ~/.local/share/icons/"
+    elif [ -d "$HOME/.icons/Nordic-darker" ]; then
+        ICON_NAME="Nordic-darker"
+    fi
+
     # Extract or Copy Cursor Theme (prioritizes .tar.xz archive)
-    mkdir -p "$HOME/.icons" "$HOME/.local/share/icons"
     if [ -f "$SCRIPT_DIR/icons/Sweet-cursors.tar.xz" ]; then
         tar -xf "$SCRIPT_DIR/icons/Sweet-cursors.tar.xz" -C "$HOME/.icons/" 2>/dev/null || true
         tar -xf "$SCRIPT_DIR/icons/Sweet-cursors.tar.xz" -C "$HOME/.local/share/icons/" 2>/dev/null || true
@@ -507,18 +559,18 @@ setup_gtk_theme() {
 
     # Apply via gsettings (if available)
     if command -v gsettings &>/dev/null; then
-        gsettings set org.gnome.desktop.interface gtk-theme "Nordic-darker" 2>/dev/null || true
-        gsettings set org.gnome.desktop.interface icon-theme "Nordic-darker" 2>/dev/null || true
+        gsettings set org.gnome.desktop.interface gtk-theme "$THEME_NAME" 2>/dev/null || true
+        gsettings set org.gnome.desktop.interface icon-theme "$ICON_NAME" 2>/dev/null || true
         gsettings set org.gnome.desktop.interface cursor-theme "Sweet-cursors" 2>/dev/null || true
         gsettings set org.gnome.desktop.interface color-scheme "prefer-dark" 2>/dev/null || true
     fi
 
     # Write GTK 3 settings.ini
     mkdir -p "$HOME/.config/gtk-3.0"
-    cat << 'EOF' > "$HOME/.config/gtk-3.0/settings.ini"
+    cat << EOF > "$HOME/.config/gtk-3.0/settings.ini"
 [Settings]
-gtk-theme-name=Nordic-darker
-gtk-icon-theme-name=Nordic-darker
+gtk-theme-name=$THEME_NAME
+gtk-icon-theme-name=$ICON_NAME
 gtk-cursor-theme-name=Sweet-cursors
 gtk-cursor-theme-size=24
 gtk-application-prefer-dark-theme=1
@@ -526,10 +578,10 @@ EOF
 
     # Write GTK 4 settings.ini
     mkdir -p "$HOME/.config/gtk-4.0"
-    cat << 'EOF' > "$HOME/.config/gtk-4.0/settings.ini"
+    cat << EOF > "$HOME/.config/gtk-4.0/settings.ini"
 [Settings]
-gtk-theme-name=Nordic-darker
-gtk-icon-theme-name=Nordic-darker
+gtk-theme-name=$THEME_NAME
+gtk-icon-theme-name=$ICON_NAME
 gtk-cursor-theme-name=Sweet-cursors
 gtk-cursor-theme-size=24
 gtk-application-prefer-dark-theme=1
@@ -549,7 +601,7 @@ EOF
         xsetroot -cursor_name left_ptr 2>/dev/null || true
     fi
 
-    log_success "Applied Nordic-darker GTK theme and Sweet-cursors cursor successfully!"
+    log_success "Applied $THEME_NAME GTK theme, $ICON_NAME icon theme, and Sweet-cursors cursor successfully!"
 }
 
 setup_xsessions() {
@@ -669,12 +721,22 @@ verify_installation() {
         echo -e "  [${YELLOW}WARN${NC}] Python GTK3 or libX11 bindings check failed."
     fi
 
+    # Check Python D-Bus bindings (for Azkia Polkit Agent and Audio Player)
+    if python3 -c "import dbus, dbus.service; from gi.repository import GLib" &>/dev/null; then
+        echo -e "  [${GREEN}OK${NC}] Python D-Bus & GLib bindings verified."
+    else
+        echo -e "  [${YELLOW}WARN${NC}] Python D-Bus bindings missing. Install python3-dbus for full Polkit agent integration."
+    fi
+
     if [ "$ERRORS" -eq 0 ]; then
         echo -e "\n${GREEN}✔ Azkia Shell & BSPWM Installation Completed Successfully!${NC}"
         echo -e "To start your new BSPWM environment:"
         echo -e "  1. Log out of your current session."
         echo -e "  2. Select 'BSPWM' from your Display Manager (LightDM/GDM/SDDM)."
         echo -e "  3. Or run 'startx' from a TTY.\n"
+        echo -e "Azkia Ecosystem:"
+        echo -e "  • Azkia Greeter (greetd modern login): sudo bash ~/.config/bspwm/azkia-greeter/setup_greetd.sh"
+        echo -e "  • Azkia Polkit Agent: Fully integrated into Azkia Shell daemon\n"
     else
         echo -e "\n${YELLOW}Installation completed with $ERRORS warning(s). Please review missing components above.${NC}\n"
     fi

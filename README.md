@@ -19,14 +19,15 @@ https://github.com/user-attachments/assets/9999e326-6924-4018-a8cf-8e15c73fdf69
 
 ## 🚀 Features
 
-- **Multi-Distro Support**: Works natively on **Debian / Ubuntu / Butterbian**, **Arch Linux / Manjaro / EndeavourOS**, and **Fedora / Nobara**.
-- **Azkia Shell**: Modern bar, control center, launchers, system monitor, note manager, lockscreen, and popups.
-- **Instant UI Settings**: Built-in graphical settings panel for real-time, instant customization of shell appearance, wallpapers, picom effects, and autolock timeouts.
+- **Multi-Distro Support**: Works natively on **Debian / Ubuntu / Linux Mint / Butterbian**, **Arch Linux / Manjaro / EndeavourOS**, and **Fedora / Nobara**.
+- **Azkia Shell**: Modern bar, control center, unified launcher/dash, audio player, PDF viewer, window switcher, system monitor, and popups built with Quickshell & Qt6.
+- **Native Polkit Integration**: Built-in PolicyKit Authentication Agent (`polkit_agent.py` & `PolkitDialog.qml`) replacing legacy external polkit agents with a sleek, themed graphical dialog.
+- **Azkia Greeter**: Modern display manager frontend powered by `greetd` and Quickshell for an integrated login experience (`setup_greetd.sh`).
+- **Pre-configured Nora & Casauna Themes**: Automatically deploys and applies **Nora-gtk-mauve** GTK theme, **casauna** icon theme, and **Sweet-cursors** cursor theme.
+- **Window Management & Switcher**: BSPWM tiling/floating rules, display management (`display_setup.sh`), tag switcher, and responsive Alt+Tab task switcher.
+- **Integrated Applications**: Built-in **Azkia Audio Player**, **Azkia PDF Viewer**, and **Azkia Settings** with dedicated desktop entries.
 - **Terminal Emulator**: Pre-configured with **Kitty** (`Super + Return`).
-- **Pre-configured GTK & Cursor Theme**: Automatically deploys and applies **Nordic-darker** GTK theme and **Sweet-cursors** cursor theme.
-- **Window Management**: Window tiled/floating rules, mouse focus, keybindings via `sxhkd`.
-- **Media & Audio Integration**: System audio popups (`pamixer`), media playback controls (`playerctl`), and visualizer (`cava`).
-- **Power & System Control**: Lockscreen (`idle_daemon.py`, `lockscreen_auth.py`), power profiles (`power-profiles-daemon`), and wallpaper manager (`feh` & `wallpaper.py`).
+- **Power & System Control**: Lockscreen (`idle_daemon.py`), power profiles (`power-profiles-daemon`), hourly health movement reminder, and wallpaper manager.
 
 ---
 
@@ -49,12 +50,12 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/irfan-taufik03/azkia-she
 
 ### What the Installer Does:
 1. **Auto-Detects Linux Distro**: Supports APT (Debian/Ubuntu/Mint), Pacman/AUR (Arch), and DNF (Fedora).
-2. **Installs System Packages**: Automatically installs `bspwm`, `sxhkd`, `picom`, `feh`, `cava`, `kitty`, `python3-gi`, Qt6 libraries, etc.
+2. **Installs System Packages**: Automatically installs `bspwm`, `sxhkd`, `picom`, `feh`, `cava`, `kitty`, `python3-gi`, `python3-dbus`, `polkitd`, Qt6 libraries, etc.
 3. **Installs Quickshell Engine**: Configures APT repositories (Debian/Ubuntu) or builds `quickshell-git` from AUR (Arch Linux).
-4. **Deploys Dotfiles & Themes**: Copies configuration to `~/.config/bspwm/`, `~/.themes/Nordic-darker`, and `~/.icons/Sweet-cursors`.
+4. **Deploys Dotfiles & Themes**: Copies configuration to `~/.config/bspwm/`, `~/.themes/Nora-gtk-mauve`, `~/.icons/casauna`, and `~/.icons/Sweet-cursors`.
 5. **Applies Themes Automatically**: Configures GTK3/GTK4 settings and `index.theme` for instant visual application.
 6. **Configures Environment**: Updates `$HOME` paths in `appearance.json` automatically.
-7. **Enables System Services**: Enables `bluetooth.service`, `NetworkManager.service`, and `power-profiles-daemon`.
+7. **Enables System Services**: Enables `bluetooth.service`, `NetworkManager.service`, `power-profiles-daemon`, and hourly movement timer.
 8. **Creates XSession Desktop Entry**: Adds `/usr/share/xsessions/bspwm.desktop` for your display manager.
 
 ---
@@ -71,7 +72,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/irfan-taufik03/azkia-she
 | **Audio & Media** | `pamixer`, `playerctl`, `cava` | `pamixer`, `playerctl`, `cava` | `pamixer`, `playerctl`, `cava` |
 | **Brightness & Power** | `brightnessctl`, `upower`, `power-profiles-daemon` | `brightnessctl`, `upower`, `power-profiles-daemon` | `brightnessctl`, `upower`, `power-profiles-daemon` |
 | **Bluetooth & Network** | `bluez`, `bluez-tools`, `network-manager` | `bluez`, `bluez-utils`, `networkmanager` | `bluez`, `bluez-tools`, `NetworkManager` |
-| **GTK & Cursor Theme** | `Nordic-darker`, `Sweet-cursors` | `Nordic-darker`, `Sweet-cursors` | `Nordic-darker`, `Sweet-cursors` |
+| **PolicyKit & D-Bus** | `python3-dbus`, `polkitd` | `python-dbus`, `polkit` | `python3-dbus`, `polkit` |
+| **GTK & Icon Theme** | `Nora-gtk-mauve`, `casauna`, `Sweet-cursors` | `Nora-gtk-mauve`, `casauna`, `Sweet-cursors` | `Nora-gtk-mauve`, `casauna`, `Sweet-cursors` |
 
 ---
 

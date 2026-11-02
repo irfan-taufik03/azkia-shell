@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Azkia Settings
+GenericName=Settings
+Comment=Pusat konfigurasi dan pengaturan Azkia Shell
+Exec=/home/vaan/.config/bspwm/azkia-shell/scripts/azkia-settings
+Icon=/home/vaan/.config/bspwm/azkia-shell/assets/azkia-settings-icons.svg
+Terminal=false
+Categories=Settings;DesktopSettings;Utility;
+StartupWMClass=quickshell
+Keywords=settings;configuration;preference;azkia;shell;

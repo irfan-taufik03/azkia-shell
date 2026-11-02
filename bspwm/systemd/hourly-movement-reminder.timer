@@ -1,0 +1,10 @@
+[Unit]
+Description=Hourly Movement Reminder Timer
+
+[Timer]
+OnCalendar=*-*-* *:00:00
+AccuracySec=1s
+Persistent=false
+
+[Install]
+WantedBy=timers.target

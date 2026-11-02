@@ -8,18 +8,16 @@ Popout {
     cardWidth: 350
     cardHeight: 360
 
-    function toggle() { visible = !visible }
-
     IpcHandler {
         target: "power"
         function toggle(): void { root.toggle() }
     }
 
-    property int selectedIndex: 0
+    property int selectedIndex: -1
 
     onVisibleChanged: {
         if (visible) {
-            root.selectedIndex = 0
+            root.selectedIndex = -1
             Quickshell.execDetached(["python3", Sys.scriptPath("x11_unfocus.py")])
             keyCatcher.forceActiveFocus()
         } else {
@@ -38,19 +36,35 @@ Popout {
         focus: true
 
         Keys.onDownPressed: {
-            root.selectedIndex = Math.min(powerCol.powerOptions.length - 1, root.selectedIndex + 1)
+            if (powerCol.powerOptions.length > 0) {
+                if (root.selectedIndex < 0) {
+                    root.selectedIndex = 0
+                } else {
+                    root.selectedIndex = Math.min(powerCol.powerOptions.length - 1, root.selectedIndex + 1)
+                }
+            }
         }
         Keys.onUpPressed: {
-            root.selectedIndex = Math.max(0, root.selectedIndex - 1)
+            if (powerCol.powerOptions.length > 0) {
+                if (root.selectedIndex < 0) {
+                    root.selectedIndex = powerCol.powerOptions.length - 1
+                } else {
+                    root.selectedIndex = Math.max(0, root.selectedIndex - 1)
+                }
+            }
         }
         Keys.onReturnPressed: {
             if (root.selectedIndex >= 0 && root.selectedIndex < powerCol.powerOptions.length) {
                 root.runAction(powerCol.powerOptions[root.selectedIndex].cmd)
+            } else if (root.selectedIndex < 0 && powerCol.powerOptions.length > 0) {
+                root.runAction(powerCol.powerOptions[0].cmd)
             }
         }
         Keys.onEnterPressed: {
             if (root.selectedIndex >= 0 && root.selectedIndex < powerCol.powerOptions.length) {
                 root.runAction(powerCol.powerOptions[root.selectedIndex].cmd)
+            } else if (root.selectedIndex < 0 && powerCol.powerOptions.length > 0) {
+                root.runAction(powerCol.powerOptions[0].cmd)
             }
         }
 
@@ -106,7 +120,7 @@ Popout {
                         desc: "Suspend system to RAM",
                         icon: "󰤄",
                         color: "#c6a0f6",
-                        cmd: ["systemctl", "suspend"]
+                        cmd: ["sh", "-c", "qs -p " + Sys.configDir + " ipc call lockscreen lock; systemctl suspend"]
                     },
                     {
                         name: "Restart",
@@ -138,36 +152,33 @@ Popout {
                         required property var modelData
                         required property int index
 
+                        readonly property bool isKeyboardSelected: (root.selectedIndex >= 0) && (index === root.selectedIndex)
+                        readonly property bool isHovered: itemMa.containsMouse
+
                         width: parent.width
                         height: 50
-                        radius: 10
-                        color: index === root.selectedIndex ? Qt.alpha(modelData.color, 0.3) : (itemMa.containsMouse ? Qt.alpha(modelData.color, 0.22) : Sys.customModuleBg)
+                        radius: 14
+                        color: isKeyboardSelected ? Theme.accent : (isHovered ? Qt.alpha(Theme.accent, 0.18) : Sys.customModuleBg)
                         border.width: 1
-                        border.color: (index === root.selectedIndex || itemMa.containsMouse) ? modelData.color : Sys.customModuleBorder
+                        border.color: (isKeyboardSelected || isHovered) ? Theme.accent : Sys.customModuleBorder
 
-                        Behavior on color { ColorAnimation { duration: 120 } }
+                        Behavior on color { ColorAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on border.color { ColorAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
                         Row {
                             anchors.fill: parent
-                            anchors.leftMargin: 12
+                            anchors.leftMargin: 16
                             anchors.rightMargin: 12
                             spacing: 14
 
-                            // Colored Icon Box
-                            Rectangle {
-                                width: 36
-                                height: 36
-                                radius: 8
+                            Text {
                                 anchors.verticalCenter: parent.verticalCenter
-                                color: Qt.alpha(modelData.color, 0.20)
+                                text: modelData.icon
+                                color: isKeyboardSelected ? Sys.customBarBg : modelData.color
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 20
 
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: modelData.icon
-                                    color: modelData.color
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: 18
-                                }
+                                Behavior on color { ColorAnimation { duration: 180; easing.type: Easing.OutCubic } }
                             }
 
                             // Labels
@@ -177,17 +188,21 @@ Popout {
 
                                 Text {
                                     text: modelData.name
-                                    color: index === root.selectedIndex ? modelData.color : Theme.fg
+                                    color: isKeyboardSelected ? Sys.customBarBg : Theme.fg
                                     font.family: Theme.fontFamily
                                     font.pixelSize: 12
                                     font.bold: true
+
+                                    Behavior on color { ColorAnimation { duration: 180; easing.type: Easing.OutCubic } }
                                 }
 
                                 Text {
                                     text: modelData.desc
-                                    color: Qt.alpha(Theme.fg, 0.5)
+                                    color: isKeyboardSelected ? Qt.alpha(Sys.customBarBg, 0.75) : Qt.alpha(Theme.fg, 0.5)
                                     font.family: Theme.fontFamily
                                     font.pixelSize: 10
+
+                                    Behavior on color { ColorAnimation { duration: 180; easing.type: Easing.OutCubic } }
                                 }
                             }
                         }

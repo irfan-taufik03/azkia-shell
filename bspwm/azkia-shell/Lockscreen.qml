@@ -1,32 +1,26 @@
 import QtQuick
+import QtQuick.Window
 import QtQuick.Effects
 import Qt5Compat.GraphicalEffects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Widgets
-import Quickshell.Wayland
 
-PanelWindow {
+Window {
     id: root
 
     property var modelData
-    screen: modelData
+    readonly property var targetScreen: modelData
 
-    width: screen ? screen.width : 1920
-    height: screen ? screen.height : 1080
-
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-
-    anchors {
-        top: true
-        bottom: true
-        left: true
-        right: true
-    }
-
-    color: "transparent"
+    title: "Lockscreen"
+    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+    color: Sys.customBarBg
     visible: false
+
+    x: targetScreen ? (targetScreen.x || 0) : 0
+    y: targetScreen ? (targetScreen.y || 0) : 0
+    width: targetScreen ? (targetScreen.width || 1920) : 1920
+    height: targetScreen ? (targetScreen.height || 1080) : 1080
 
     property bool isLocked: false
     property bool isAuthenticating: false
@@ -47,6 +41,8 @@ PanelWindow {
         isLocked = true
         isError = false
         passwordInput.text = ""
+        root.requestActivate()
+        passwordInput.forceActiveFocus()
         focusTimer.count = 0
         focusTimer.restart()
     }
@@ -67,8 +63,16 @@ PanelWindow {
         function unlock(): void { root.unlock() }
     }
 
+    onActiveChanged: {
+        if (active) {
+            passwordInput.forceActiveFocus()
+        }
+    }
+
     onVisibleChanged: {
         if (visible) {
+            root.requestActivate()
+            passwordInput.forceActiveFocus()
             focusTimer.count = 0
             focusTimer.restart()
         }
@@ -81,6 +85,7 @@ PanelWindow {
         property int count: 0
         onTriggered: {
             Quickshell.execDetached(["python3", Sys.scriptPath("x11_unfocus.py"), "--lockscreen"])
+            root.requestActivate()
             passwordInput.forceActiveFocus()
             count++
             if (count >= 5) {
@@ -100,6 +105,7 @@ PanelWindow {
         anchors.fill: parent
         onClicked: {
             Quickshell.execDetached(["python3", Sys.scriptPath("x11_unfocus.py"), "--lockscreen"])
+            root.requestActivate()
             passwordInput.forceActiveFocus()
         }
     }
@@ -238,10 +244,10 @@ PanelWindow {
                 id: passwordBox
                 width: 260
                 height: 42
-                radius: 21
+                radius: Theme.cardRadius
                 color: Theme.bg
-                border.width: 2
-                border.color: root.isError ? Theme.red : (passwordInput.activeFocus ? Theme.accent : Theme.border)
+                border.width: 1
+                border.color: root.isError ? Theme.red : Sys.customModuleBorder
                 anchors.horizontalCenter: parent.horizontalCenter
 
                 Behavior on border.color { ColorAnimation { duration: 150 } }
@@ -279,6 +285,8 @@ PanelWindow {
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width - 55
                         color: Theme.fg
+                        selectionColor: Theme.accent
+                        selectedTextColor: Theme.bg
                         font.family: Theme.fontFamily
                         font.pixelSize: 13
                         echoMode: TextInput.Password

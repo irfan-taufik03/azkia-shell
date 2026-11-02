@@ -1,78 +1,41 @@
 #!/usr/bin/env python3
 import subprocess
 import json
-import os
 
 def get_storage_info():
     partitions = []
     try:
-        # Run df in POSIX format (-P)
         cmd = ["df", "-h", "-P", "-x", "tmpfs", "-x", "devtmpfs", "-x", "efivarfs", "-x", "squashfs"]
         out = subprocess.run(cmd, capture_output=True, text=True).stdout
-        lines = out.strip().split("\n")
-
-        root_device = None
         seen_devices = set()
 
-        for line in lines[1:]:
+        for line in out.strip().splitlines()[1:]:
             parts = line.split()
-            if len(parts) >= 6:
-                device = parts[0]
-                size = parts[1]
-                used = parts[2]
-                avail = parts[3]
-                use_str = parts[4].replace("%", "")
-                mount = parts[5]
+            if len(parts) < 6:
+                continue
+            device, size, used, avail, use_str, mount = parts[:6]
+            pct = use_str.rstrip("%")
+            use_pct = int(pct) if pct.isdigit() else 0
 
-                try:
-                    use_pct = int(use_str)
-                except ValueError:
-                    use_pct = 0
+            if mount == "/":
+                seen_devices.add(device)
+                label = "Root (/)"
+            elif device.startswith(("/dev/sd", "/dev/nvme", "/dev/mmc")) or mount.startswith(("/run/media", "/media", "/mnt")):
+                if mount in seen_devices:
+                    continue
+                seen_devices.add(mount)
+                suffix = mount.rsplit("/", 1)[-1]
+                if mount.startswith("/run/media/"): label = f"USB ({suffix})"
+                elif mount.startswith("/media/"):    label = f"Media ({suffix})"
+                elif mount.startswith("/mnt/"):      label = f"Drive ({suffix})"
+                else:                                label = device
+            else:
+                continue
 
-                # Root partition /
-                if mount == "/":
-                    root_device = device
-                    seen_devices.add(device)
-                    partitions.append({
-                        "device": device,
-                        "mount": mount,
-                        "name": "Root (/)",
-                        "size": size,
-                        "used": used,
-                        "avail": avail,
-                        "usePct": use_pct
-                    })
-                # Other physical drive partitions or mounts (/dev/sd*, /dev/nvme*, /dev/mmcblk*, USB mounts)
-                elif device != root_device and (
-                    device.startswith("/dev/sd") or 
-                    device.startswith("/dev/nvme") or 
-                    device.startswith("/dev/mmc") or 
-                    mount.startswith("/run/media") or 
-                    mount.startswith("/media") or 
-                    mount.startswith("/mnt")
-                ):
-                    if mount not in seen_devices:
-                        seen_devices.add(mount)
-                        # Clean label
-                        label = mount
-                        if mount.startswith("/run/media/"):
-                            label = "USB (" + mount.split("/")[-1] + ")"
-                        elif mount.startswith("/media/"):
-                            label = "Media (" + mount.split("/")[-1] + ")"
-                        elif mount.startswith("/mnt/"):
-                            label = "Drive (" + mount.split("/")[-1] + ")"
-                        else:
-                            label = device
-
-                        partitions.append({
-                            "device": device,
-                            "mount": mount,
-                            "name": label,
-                            "size": size,
-                            "used": used,
-                            "avail": avail,
-                            "usePct": use_pct
-                        })
+            partitions.append({
+                "device": device, "mount": mount, "name": label,
+                "size": size, "used": used, "avail": avail, "usePct": use_pct
+            })
     except Exception:
         pass
 

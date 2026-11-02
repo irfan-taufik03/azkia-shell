@@ -20,7 +20,7 @@ def get_apps():
                 pid = None
                 for line in xprop_out.splitlines():
                     if 'WM_CLASS' in line:
-                        m = re.findall(r'"([^"]+)"', line)
+                        m = [x for x in re.findall(r'"([^"]*)"', line) if x.strip()]
                         if m:
                             cls = m[-1]
                     elif '_NET_WM_NAME' in line:
@@ -73,7 +73,22 @@ def get_apps():
 
     installed = []
     seen_installed = set()
-    desktop_files = glob.glob('/usr/share/applications/*.desktop') + glob.glob(os.path.expanduser('~/.local/share/applications/*.desktop'))
+    search_dirs = [
+        "/usr/share/applications",
+        "/usr/local/share/applications",
+        os.path.expanduser("~/.local/share/applications"),
+        "/var/lib/flatpak/exports/share/applications",
+        os.path.expanduser("~/.local/share/flatpak/exports/share/applications"),
+    ]
+    xdg = os.environ.get("XDG_DATA_DIRS", "")
+    for d in xdg.split(":"):
+        if d:
+            search_dirs.append(os.path.join(d, "applications"))
+    desktop_files = []
+    for d in search_dirs:
+        if os.path.isdir(d):
+            desktop_files.extend(glob.glob(os.path.join(d, "*.desktop")))
+    desktop_files = list(set(desktop_files))
     for df in desktop_files:
         try:
             name = ''

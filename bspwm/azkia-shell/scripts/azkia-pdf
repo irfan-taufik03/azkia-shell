@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+SHELL_DIR="$HOME/.config/bspwm/azkia-shell"
+
+pgrep -x "qs|quickshell" >/dev/null || { qs -p "$SHELL_DIR" -d -n >/dev/null 2>&1 & sleep 0.5; }
+
+exec python3 "$SHELL_DIR/scripts/azkia_pdf.py" "$@"

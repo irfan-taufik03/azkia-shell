@@ -2,7 +2,15 @@
 import json
 import os
 import platform
-import subprocess
+import getpass
+
+def read_val(path, ignore=("To be filled by O.E.M.", "Default string", "System Product Name")):
+    try:
+        with open(path) as f:
+            v = f.read().strip()
+            return v if v and v not in ignore else ""
+    except Exception:
+        return ""
 
 def get_sys_fetch():
     # 1. Distro Name
@@ -14,43 +22,12 @@ def get_sys_fetch():
                     distro = line.split("=", 1)[1].strip("\"'\n")
                     break
 
-    # 2. Kernel Version
-    kernel = platform.release()
+    # 2. Host Model
+    vendor = read_val("/sys/class/dmi/id/sys_vendor") or read_val("/sys/devices/virtual/dmi/id/sys_vendor")
+    product = read_val("/sys/class/dmi/id/product_name") or read_val("/sys/devices/virtual/dmi/id/product_name")
+    host = f"{vendor} {product}".strip() or platform.node() or "Linux PC"
 
-    # 3. Window Manager
-    wm = "BSPWM"
-
-    # 4. Desktop Shell
-    shell = "Azkia Shell"
-
-    # 5. Host Model
-    vendor = ""
-    product = ""
-    for p in ["/sys/class/dmi/id/sys_vendor", "/sys/devices/virtual/dmi/id/sys_vendor"]:
-        if os.path.exists(p):
-            try:
-                with open(p) as f:
-                    v = f.read().strip()
-                    if v and v not in ["To be filled by O.E.M.", "Default string"]:
-                        vendor = v
-                        break
-            except: pass
-
-    for p in ["/sys/class/dmi/id/product_name", "/sys/devices/virtual/dmi/id/product_name"]:
-        if os.path.exists(p):
-            try:
-                with open(p) as f:
-                    val = f.read().strip()
-                    if val and val not in ["To be filled by O.E.M.", "Default string", "System Product Name"]:
-                        product = val
-                        break
-            except: pass
-
-    host = f"{vendor} {product}".strip()
-    if not host:
-        host = platform.node() or "Linux PC"
-
-    # 6. CPU Model
+    # 3. CPU Model
     cpu = "Unknown CPU"
     if os.path.exists("/proc/cpuinfo"):
         with open("/proc/cpuinfo") as f:
@@ -59,58 +36,62 @@ def get_sys_fetch():
                     cpu = line.split(":", 1)[1].strip()
                     break
 
-    # 7. Total RAM & Memory Usage
-    ram_total = "0 GB"
-    ram_used = "0 GB"
-    ram_str = "0 GB"
+    # 4. Total RAM & Memory Usage
+    ram_total = ram_str = "0 GB"
     if os.path.exists("/proc/meminfo"):
         try:
+            mem = {}
             with open("/proc/meminfo") as f:
-                mem = {}
                 for line in f:
-                    parts = line.split(":")
-                    if len(parts) == 2:
-                        k = parts[0].strip()
-                        v = parts[1].strip().split()[0]
-                        mem[k] = int(v)
-                total_kb = mem.get("MemTotal", 0)
-                avail_kb = mem.get("MemAvailable", 0)
-                used_kb = total_kb - avail_kb
-                
-                total_gb = round(total_kb / (1024 * 1024), 1)
-                used_gb = round(used_kb / (1024 * 1024), 1)
-                
-                ram_total = f"{total_gb} GB"
-                ram_used = f"{used_gb} GB"
-                ram_str = f"{used_gb} GB / {total_gb} GB"
-        except: pass
+                    p = line.split(":")
+                    if len(p) == 2 and p[0].strip() in ("MemTotal", "MemAvailable"):
+                        mem[p[0].strip()] = int(p[1].split()[0])
+            total_kb, avail_kb = mem.get("MemTotal", 0), mem.get("MemAvailable", 0)
+            total_gb = round(total_kb / 1048576, 1)
+            used_gb = round((total_kb - avail_kb) / 1048576, 1)
+            ram_total = f"{total_gb} GB"
+            ram_str = f"{used_gb} GB / {total_gb} GB"
+        except Exception:
+            pass
 
-    # 8. System Uptime
-    uptime_str = ""
+    # 5. System Uptime
+    uptime_str = uptime_full = ""
     if os.path.exists("/proc/uptime"):
         try:
             with open("/proc/uptime") as f:
                 secs = float(f.read().split()[0])
-                hrs = int(secs // 3600)
-                mins = int((secs % 3600) // 60)
-                if hrs > 0:
-                    uptime_str = f"{hrs}h {mins}m"
-                else:
-                    uptime_str = f"{mins}m"
-        except: pass
+            days, rem = divmod(int(secs), 86400)
+            hrs, mins = divmod(rem, 3600)
+            mins //= 60
+
+            parts = []
+            if days: parts.append(f"{days} {'day' if days == 1 else 'days'}")
+            if hrs:  parts.append(f"{hrs} {'hour' if hrs == 1 else 'hours'}")
+            if mins or not parts: parts.append(f"{mins} {'minute' if mins == 1 else 'minutes'}")
+            uptime_full = ", ".join(parts)
+            uptime_str = f"{days}d {hrs}h {mins}m" if days else (f"{hrs}h {mins}m" if hrs else f"{mins}m")
+        except Exception:
+            pass
+
+    # 6. Current User
+    try:
+        current_user = getpass.getuser()
+    except Exception:
+        current_user = os.environ.get("USER", "vaan")
 
     res = {
+        "user": current_user,
         "distro": distro,
-        "kernel": kernel,
-        "wm": wm,
-        "shell": shell,
+        "kernel": platform.release(),
+        "wm": "BSPWM",
+        "shell": "Azkia Shell",
         "host": host,
         "cpu": cpu,
         "ram": ram_total,
         "ram_str": ram_str,
-        "uptime": uptime_str
+        "uptime": uptime_str,
+        "uptime_full": uptime_full
     }
-
     print(json.dumps(res))
 
 if __name__ == "__main__":

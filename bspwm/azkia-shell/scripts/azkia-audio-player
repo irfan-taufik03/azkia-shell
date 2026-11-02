@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+SHELL_DIR="$HOME/.config/bspwm/azkia-shell"
+
+pgrep -x "qs|quickshell" >/dev/null || { qs -p "$SHELL_DIR" -d -n >/dev/null 2>&1 & sleep 0.5; }
+
+if [ "$#" -gt 0 ]; then
+    exec python3 "$SHELL_DIR/scripts/azkia_audio_player.py" --open "$@"
+else
+    exec qs -p "$SHELL_DIR" ipc call audioplayer open
+fi

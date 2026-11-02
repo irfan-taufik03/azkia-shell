@@ -17,10 +17,8 @@ Popout {
     readonly property bool sinkMuted: audioSink?.muted ?? false
     readonly property int sinkVolume: audioSink ? Math.round(audioSink.volume * 100) : 0
 
-    function toggle() { visible = !visible }
-
     function showPopup() {
-        visible = true
+        open()
         hideTimer.restart()
     }
 
@@ -50,7 +48,7 @@ Popout {
     Timer {
         id: hideTimer
         interval: 2000
-        onTriggered: root.visible = false
+        onTriggered: root.close()
     }
 
     IpcHandler {

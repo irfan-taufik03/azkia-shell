@@ -31,7 +31,7 @@ Rectangle {
     color: active ? root.activeBgColor
          : (mouse.containsMouse && interactive ? root.hoverBgColor : root.bgColor)
     border.width: 1
-    border.color: active ? Theme.accent : (mouse.containsMouse && interactive ? Qt.alpha(Theme.fg, 0.25) : Sys.customModuleBorder)
+    border.color: active ? Sys.customModuleBorder : (mouse.containsMouse && interactive ? Qt.alpha(Theme.fg, 0.25) : Sys.customModuleBorder)
     // tactile press feedback — slow-starting apps otherwise make a click
     // feel like it didn't register
     scale: mouse.pressed && interactive ? 0.9 : 1
@@ -46,6 +46,7 @@ Rectangle {
 
         Item {
             visible: root.icon !== "" || root.iconImage !== ""
+            anchors.verticalCenter: parent.verticalCenter
 
             width: root.iconImage !== "" ? root.iconImageSize : iconText.implicitWidth
             height: root.iconImage !== "" ? root.iconImageSize : 18

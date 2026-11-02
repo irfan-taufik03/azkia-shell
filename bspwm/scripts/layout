@@ -1,0 +1,21 @@
+#!/bin/sh
+# Layout helper for bspwm and azkia-shell
+case "$1" in
+    get)
+        cur=$(bspc query -T -d 2>/dev/null | grep -o '"layout":"[^"]*"' | cut -d '"' -f 4)
+        echo "${cur:-tiled}"
+        ;;
+    set)
+        if [ "$2" = "monocle" ]; then
+            bspc desktop -l monocle 2>/dev/null
+        else
+            bspc desktop -l tiled 2>/dev/null
+        fi
+        ;;
+    next|prev)
+        bspc desktop -l next 2>/dev/null
+        ;;
+    *)
+        echo "tiled"
+        ;;
+esac

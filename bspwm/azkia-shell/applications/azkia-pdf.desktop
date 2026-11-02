@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Azkia PDF
+GenericName=PDF Viewer
+Comment=Pembaca dokumen PDF modern berbasis Quickshell
+Exec=/home/vaan/.config/bspwm/azkia-shell/scripts/azkia-pdf %U
+Icon=/home/vaan/.config/bspwm/azkia-shell/assets/azkia-pdf.svg
+Terminal=false
+Categories=Office;Viewer;Graphics;
+MimeType=application/pdf;application/x-pdf;application/x-bzpdf;application/x-gzpdf;
+StartupWMClass=quickshell
+Keywords=pdf;viewer;document;reader;azkia;

@@ -12,7 +12,7 @@ PICOM_CONF_PATH = os.path.expanduser("~/.config/bspwm/picom.conf")
 def get_bspwm_info():
     gap = 8
     border = 2
-    corner_radius = 12
+    corner_radius = 15
 
     try:
         res_gap = subprocess.run(["bspc", "config", "window_gap"], capture_output=True, text=True)

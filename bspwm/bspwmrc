@@ -1,21 +1,19 @@
 #!/bin/bash
-pgrep -x sxhkd >/dev/null || sxhkd &
+export PATH="$HOME/.local/bin:$PATH"
+export SHELL=/usr/bin/fish
+export SXHKD_SHELL=/bin/bash
+pgrep -x sxhkd >/dev/null || sxhkd -c ~/.config/bspwm/sxhkdrc &
 
-export QT_QPA_PLATFORM=xcb
 export QT_QPA_PLATFORMTHEME=qt5ct
 export QT_STYLE_OVERRIDE=kvantum
 export QT6CT_PLATFORMTHEME=qt6ct
-export QSG_RENDER_LOOP=basic
-export XCURSOR_THEME=Sweet-cursors
-export XCURSOR_SIZE=24
+export QML_DISABLE_DISTANCEFIELD=1
+export XDG_CURRENT_DESKTOP=GNOME
 
-# Force X11 root window (desktop) to use the active cursor theme
-xsetroot -cursor_name left_ptr &
-
-bspc monitor -d 1 2 3 4 5 6 7 8 9 10
+~/.config/bspwm/scripts/display_setup.sh auto
 
 bspc config border_width 2
-bspc config window_gap 8
+bspc config window_gap 7
 
 bspc config focused_border_color "#bd93f9"
 bspc config normal_border_color "#2E3440"
@@ -25,50 +23,71 @@ bspc config presel_feedback_color "#A3BE8C"
 bspc config split_ratio 0.50
 bspc config borderless_monocle true
 bspc config gapless_monocle true
-bspc config paddingless_monocle true
 bspc config single_monocle false
 bspc config focus_follows_pointer true
 bspc config presel_feedback true
 
 bspc rule -r *:*
 
-bspc rule -a zoom state=floating follow=on focus=on
-bspc rule -a '*:*:Picture-in-Picture' state=floating sticky=on layer=above
-bspc rule -a '*:*:Picture in picture' state=floating sticky=on layer=above
-bspc rule -a '*:*:Library' state=floating sticky=on layer=above
-bspc rule -a '*:*:zoom_linux_float_video_window' state=floating sticky=on layer=above
-bspc rule -a quickshell state=floating follow=on focus=on
-bspc rule -a '*:*:Settings' state=floating follow=on focus=on
+bspc rule -a Thunar desktop='^1' follow=on focus=on
+bspc rule -a ZapZap desktop='^1' follow=on focus=on
 
-killall -9 sxhkd xfce4-power-manager
+bspc rule -a firefox desktop='^2' follow=on focus=on
+bspc rule -a firefox-esr desktop='^2' follow=on focus=on
+bspc rule -a Brave-browser follow=on focus=on desktop='^2'
+bspc rule -a zen desktop='^2' follow=on focus=on
+bspc rule -a floorp desktop='^2' follow=on focus=on
 
-lxpolkit &
+bspc rule -a Thorium-browser desktop='^3' follow=on focus=on
+bspc rule -a google-chrome desktop='^3' follow=on focus=on
+bspc rule -a vivaldi-stable desktop='^3' follow=on focus=on
 
-sxhkd -c ~/.config/bspwm/sxhkdrc &
+bspc rule -a et desktop='^4' follow=on focus=on
+
+bspc rule -a wpp desktop='^5' follow=on focus=on
+bspc rule -a QGIS3 desktop='^5' follow=on focus=on
+
+bspc rule -a wps desktop='^6' follow=on focus=on
+bspc rule -a pdf desktop='^6' follow=on focus=on
+bspc rule -a Atril desktop='^6' follow=on focus=on
+bspc rule -a qpdfview desktop='^6' follow=on focus=on
+
+bspc rule -a TelegramDesktop follow=on focus=on desktop='^7'
+bspc rule -a Parole desktop='^8' follow=on focus=on
+bspc rule -a kdenlive desktop='^8' follow=on focus=on
+bspc rule -a Audacious desktop='^8' follow=on focus=on
+
+bspc config external_rules_command ~/.config/bspwm/scripts/external_rules.sh
+
+bspc rule -a Mate-calc state=floating follow=on focus=on
+bspc rule -a mpv state=floating follow=on focus=on
+bspc rule -a Blueman-manager state=floating follow=on focus=on
+bspc rule -a Viewnior state=floating follow=on focus=on
+bspc rule -a zoom state=floating
+bspc rule -a zoom:zoom_linux_float_video_window state=floating sticky=on layer=above focus=off follow=off
+bspc rule -a Deadbeef state=floating follow=on focus=on
+bspc rule -a Yad state=floating follow=on focus=on
+bspc rule -a Shotwell state=floating follow=on focus=on
+bspc rule -a Xarchiver state=floating
+bspc rule -a quickshell:"Window Switcher" state=floating layer=above border=off follow=on focus=on
+bspc rule -a quickshell:"Task Switcher" state=floating layer=above border=off follow=on focus=on
+
+killall -9 xfce4-notifyd 2>/dev/null
+killall -9 xfce4-power-manager 2>/dev/null
+# Legacy polkit agents replaced by Azkia Shell native Polkit Agent
+killall -9 lxpolkit xfce-polkit 2>/dev/null
+
+pkill -USR1 -x sxhkd 2>/dev/null || sxhkd -c ~/.config/bspwm/sxhkdrc &
+
+# dunst -config ~/.config/bspwm/dunstrc &
 
 xfce4-power-manager &
 
-# Set PATH to include local user binaries
-export PATH="$HOME/.local/bin:$PATH"
+xsetroot -cursor_name left_ptr
 
-# Restore desktop wallpaper with fallback to default wallpaper
-if [ -f ~/.fehbg ]; then
-    ~/.fehbg &
-elif [ -f ~/.config/bspwm/wallpapers/Default.png ]; then
-    feh --bg-fill ~/.config/bspwm/wallpapers/Default.png &
-fi
+# Restore desktop wallpaper
+[ -f ~/.fehbg ] && ~/.fehbg &
 
-# Launch picom with automatic VM / software renderer detection (xrender for VM, glx for hardware GPU)
-if (command -v systemd-detect-virt &>/dev/null && [ "$(systemd-detect-virt 2>/dev/null)" != "none" ]) || (command -v glxinfo &>/dev/null && glxinfo 2>/dev/null | grep -qi "llvmpipe\|softpipe\|swrast"); then
-    picom --config ~/.config/bspwm/picom.conf --backend xrender &
-else
-    picom --config ~/.config/bspwm/picom.conf --backend glx &
-fi
+picom --config ~/.config/bspwm/picom.conf &
 
-# Launch Quickshell panel with qs / quickshell binary detection
-if command -v qs &>/dev/null; then
-    qs -p ~/.config/bspwm/azkia-shell -d -n > ~/.config/bspwm/quickshell.log 2>&1 &
-elif command -v quickshell &>/dev/null; then
-    quickshell -p ~/.config/bspwm/azkia-shell -d -n > ~/.config/bspwm/quickshell.log 2>&1 &
-fi
-
+pgrep -x qs >/dev/null || pgrep -x quickshell >/dev/null || qs -p ~/.config/bspwm/azkia-shell -d -n >/dev/null 2>&1 &

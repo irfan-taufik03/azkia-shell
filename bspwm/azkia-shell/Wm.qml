@@ -17,7 +17,39 @@ Singleton {
     property string title: ""
     property string activeWinId: ""
     property string wmClass: ""
+    property string appName: ""
     property string appIconPath: ""
+
+    // --- shared display mode (single source of truth for all monitors) ---
+    property string displayMode: "off"
+
+    function setDisplayMode(mode) {
+        root.displayMode = mode
+        Quickshell.execDetached([Theme.configDir + "/scripts/display_setup.sh", mode])
+        Quickshell.execDetached(["notify-send", "-a", "Display", "Display Mode Updated", "Applied mode: " + mode.toUpperCase()])
+    }
+
+    function detectDisplayMode() {
+        displayModeProc.running = false
+        displayModeProc.running = true
+    }
+
+    // Read mode from state file on startup
+    Component.onCompleted: detectDisplayMode()
+
+    Process {
+        id: displayModeProc
+        running: false
+        command: ["sh", "-c", "f=$HOME/.config/bspwm/display_mode; [ -f $f ] && cat $f || echo off"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const res = text.trim()
+                if (res === "mirror" || res === "extend" || res === "off") {
+                    root.displayMode = res
+                }
+            }
+        }
+    }
 
     // --- layout (scripts/layout engine on top of bspwm's native tiled/monocle) ---
 
@@ -71,6 +103,30 @@ Singleton {
         function refreshLayout(): void { root.refreshLayout() }
     }
 
+    // --- launcher: toggle on screen where mouse cursor is ---
+    signal launcherToggleRequested(string screenName)
+
+    IpcHandler {
+        target: "launcher"
+        function toggle(): void {
+            // Find which screen the mouse is on via xdotool
+            launcherMouseProc.running = false
+            launcherMouseProc.running = true
+        }
+    }
+
+    Process {
+        id: launcherMouseProc
+        running: false
+        command: [Theme.configDir + "/scripts/get_mouse_monitor.sh"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const screenName = text.trim()
+                if (screenName) root.launcherToggleRequested(screenName)
+            }
+        }
+    }
+
     Process {
         command: ["bspc", "subscribe", "report", "node_state"]
         running: true
@@ -84,36 +140,79 @@ Singleton {
         }
     }
 
+    property var monitorMap: ({})
+
+    function getSelTags(screenName) {
+        if (screenName && monitorMap[screenName])
+            return monitorMap[screenName].sel
+        return seltags
+    }
+
+    function getOccTags(screenName) {
+        if (screenName && monitorMap[screenName])
+            return monitorMap[screenName].occ
+        return occtags
+    }
+
+    function getUrgTags(screenName) {
+        if (screenName && monitorMap[screenName])
+            return monitorMap[screenName].urg
+        return urgtags
+    }
+
     // report format: W<Mname|mname>:<desktops...>:L<T|M>:T<..>:G<..>
     // desktop prefixes: O/F/U focused (occupied/free/urgent), o/f/u unfocused
     function parseReport(line) {
         if (!line.startsWith("W"))
             return
-        let sel = 0, occ = 0, urg = 0, count = 0
+        let globalSel = 0, globalOcc = 0, globalUrg = 0
         let layout = ""
-        let monitorFocused = false
+        let isMonFocused = false
+        let currentMon = ""
+        let newMap = {}
+
         for (const part of line.slice(1).split(":")) {
             if (part.length === 0)
                 continue
             const c = part[0]
             if (c === "M" || c === "m") {
-                monitorFocused = (c === "M")
-            } else if ("OoFfUu".indexOf(c) !== -1) {
-                const i = count++
-                if ("OFU".indexOf(c) !== -1)
-                    sel |= 1 << i
-                if (c === "O" || c === "o")
-                    occ |= 1 << i
-                if (c === "U" || c === "u")
-                    urg |= 1 << i
-            } else if (c === "L" && monitorFocused) {
+                currentMon = part.slice(1)
+                isMonFocused = (c === "M")
+                if (!newMap[currentMon]) {
+                    newMap[currentMon] = { sel: 0, occ: 0, urg: 0 }
+                }
+            } else if ("OoFfUu".indexOf(c) !== -1 && currentMon !== "") {
+                const dName = part.slice(1)
+                const numStr = dName.replace("_ext", "")
+                const idx = parseInt(numStr) - 1
+                if (!isNaN(idx) && idx >= 0 && idx < 10) {
+                    let st = newMap[currentMon]
+                    if (!st) {
+                        st = { sel: 0, occ: 0, urg: 0 }
+                        newMap[currentMon] = st
+                    }
+                    if ("OFU".indexOf(c) !== -1) {
+                        st.sel |= (1 << idx)
+                        globalSel |= (1 << idx)
+                    }
+                    if (c === "O" || c === "o") {
+                        st.occ |= (1 << idx)
+                        globalOcc |= (1 << idx)
+                    }
+                    if (c === "U" || c === "u") {
+                        st.urg |= (1 << idx)
+                        globalUrg |= (1 << idx)
+                    }
+                }
+            } else if (c === "L" && isMonFocused) {
                 layout = part.slice(1)
             }
         }
-        seltags = sel
-        occtags = occ
-        urgtags = urg
-        tagCount = count
+        monitorMap = newMap
+        seltags = globalSel
+        occtags = globalOcc
+        urgtags = globalUrg
+        tagCount = 10
         nativeMonocle = layout === "M"
         // desktop focus changed or native layout flipped — re-read the engine
         refreshLayout()
@@ -121,7 +220,19 @@ Singleton {
 
     // --- focused window info (title, class, icon) ---
 
+    Timer {
+        id: winInfoRestartTimer
+        interval: 1000
+        repeat: false
+        onTriggered: {
+            if (!windowInfoProc.running) {
+                windowInfoProc.running = true
+            }
+        }
+    }
+
     Process {
+        id: windowInfoProc
         command: ["python3", Sys.scriptPath("window_info.py"), "--spy"]
         running: true
         stdout: SplitParser {
@@ -130,17 +241,29 @@ Singleton {
                     const data = JSON.parse(line)
                     root.title = data.title || ""
                     root.wmClass = data.class || ""
+                    root.appName = data.name || data.class || ""
                     root.appIconPath = data.icon || ""
                 } catch (e) {}
             }
+        }
+        onExited: (code, status) => {
+            winInfoRestartTimer.restart()
         }
     }
 
     // --- actions ---
 
-    function viewTag(i) { Quickshell.execDetached(["bspc", "desktop", "-f", "^" + (i + 1)]) }
-    function toggleViewTag(i) { viewTag(i) }
-    function sendToTag(i) { Quickshell.execDetached(["bspc", "node", "-d", "^" + (i + 1)]) }
+    function viewTag(i, screenName) {
+        let args = [Theme.configDir + "/scripts/switch_tag.sh", (i + 1).toString(), "focus"]
+        if (screenName) args.push(screenName)
+        Quickshell.execDetached(args)
+    }
+    function toggleViewTag(i, screenName) { viewTag(i, screenName) }
+    function sendToTag(i, screenName) {
+        let args = [Theme.configDir + "/scripts/switch_tag.sh", (i + 1).toString(), "send"]
+        if (screenName) args.push(screenName)
+        Quickshell.execDetached(args)
+    }
     function cycleTag(dir) {
         Quickshell.execDetached(["bspc", "desktop", "-f",
             (dir > 0 ? "next" : "prev") + ".occupied.local"])

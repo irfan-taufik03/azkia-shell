@@ -49,14 +49,30 @@ Window {
         }
     }
 
+    function getShortDistro(raw) {
+        return Sys.getShortDistro(raw)
+    }
+
     function loadSysInfo() {
         sysFetchProc.running = false
         sysFetchProc.running = true
     }
 
+    Process {
+        id: avatarPickerProc
+        command: ["python3", Sys.scriptPath("select_file.py"), "Select User Avatar Image"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (text && text.trim().length > 0) {
+                    Sys.setAvatar(text.trim())
+                }
+            }
+        }
+    }
+
     onVisibleChanged: {
         if (visible) {
-            root.activeTab = "sysinfo"
+            root.activeTab = "about"
             root.loadSysInfo()
             root.loadWallpapers()
             root.loadBspwmInfo()
@@ -91,6 +107,12 @@ Window {
             root.loadBspwmInfo()
             root.loadKeybindings()
         }
+    }
+
+    Shortcut {
+        sequences: ["Escape"]
+        enabled: root.visible
+        onActivated: root.visible = false
     }
 
     // Active Navigation Tab State
@@ -146,7 +168,7 @@ Window {
         displaySetProc.command = ["python3", Sys.scriptPath("display_manager.py"), "--set-resolution", mon, res]
         displaySetProc.running = false
         displaySetProc.running = true
-        let obj = root.displayData || {}
+        let obj = Object.assign({}, root.displayData || {})
         obj.current_mode = res
         root.displayData = obj
     }
@@ -156,7 +178,7 @@ Window {
         displaySetProc.command = ["python3", Sys.scriptPath("display_manager.py"), "--set-rotation", mon, rot]
         displaySetProc.running = false
         displaySetProc.running = true
-        let obj = root.displayData || {}
+        let obj = Object.assign({}, root.displayData || {})
         obj.rotation = rot
         root.displayData = obj
     }
@@ -166,7 +188,7 @@ Window {
         displaySetProc.command = ["python3", Sys.scriptPath("display_manager.py"), "--set-scale", mon, sc]
         displaySetProc.running = false
         displaySetProc.running = true
-        let obj = root.displayData || {}
+        let obj = Object.assign({}, root.displayData || {})
         obj.current_scale = sc
         root.displayData = obj
     }
@@ -178,7 +200,7 @@ Window {
 
     function setBspwmGap(val) {
         let v = Math.max(0, Math.min(40, Math.round(val)))
-        let obj = root.bspwmData || {}
+        let obj = Object.assign({}, root.bspwmData || {})
         obj.gap = v
         root.bspwmData = obj
         bspwmSetProc.command = ["python3", Sys.scriptPath("bspwm_editor.py"), "--set-gap", v.toString()]
@@ -188,7 +210,7 @@ Window {
 
     function setBspwmBorder(val) {
         let v = Math.max(0, Math.min(10, Math.round(val)))
-        let obj = root.bspwmData || {}
+        let obj = Object.assign({}, root.bspwmData || {})
         obj.border = v
         root.bspwmData = obj
         bspwmSetProc.command = ["python3", Sys.scriptPath("bspwm_editor.py"), "--set-border", v.toString()]
@@ -198,13 +220,13 @@ Window {
 
     function setPicomCornerRadiusUI(val) {
         let v = Math.max(0, Math.min(30, Math.round(val)))
-        let obj = root.bspwmData || {}
+        let obj = Object.assign({}, root.bspwmData || {})
         obj.corner_radius = v
         root.bspwmData = obj
     }
 
     function applyPicomCornerRadius() {
-        let v = (root.bspwmData && root.bspwmData.corner_radius !== undefined) ? root.bspwmData.corner_radius : 12
+        let v = (root.bspwmData && root.bspwmData.corner_radius !== undefined) ? root.bspwmData.corner_radius : 15
         bspwmSetProc.command = ["python3", Sys.scriptPath("bspwm_editor.py"), "--set-corner-radius", v.toString()]
         bspwmSetProc.running = false
         bspwmSetProc.running = true
@@ -261,12 +283,12 @@ Process {
     function loadBspwmInfo() { bspwmProc.running = false; bspwmProc.running = true }
     function loadKeybindings() { sxhkdProc.running = false; sxhkdProc.running = true }
 
-    // Main Floating Window Rectangle (Matches Popout / CalendarPopup outer chrome)
+    // Main Floating Window Rectangle (Matches Popout / Dash outer chrome)
     Rectangle {
         id: windowCard
         anchors.fill: parent
         color: Sys.customBarBg
-        radius: 12
+        radius: Theme.windowRadius
         border.width: 0.5
         border.color: Theme.altbg
         clip: true
@@ -286,12 +308,13 @@ Process {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 12
 
-                Text {
+                Image {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "󰒓"
-                    color: Theme.accent
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 22
+                    width: 22
+                    height: 22
+                    source: "file://" + Sys.configDir + "/assets/azkia-settings-icons.svg"
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
                 }
 
                 Text {
@@ -307,7 +330,7 @@ Process {
             Rectangle {
                 width: 34
                 height: 34
-                radius: 8
+                radius: Theme.buttonRadius
                 color: closeMa.containsMouse ? Qt.alpha(Theme.red, 0.25) : "transparent"
                 anchors.right: parent.right
                 anchors.rightMargin: 14
@@ -356,24 +379,22 @@ Process {
                         width: sidebarFlick.width - 16
                         spacing: 12
 
-                        // Profile Header Card (Clickable -> Opens System Info)
-                        Rectangle {
+                        // Profile Header Section (Horizontal Row, No Card, Larger 64x64 Avatar)
+                        Item {
                             width: parent.width
-                            height: 64
-                            radius: Sys.moduleRadius
-                            color: profileCardMa.containsMouse ? Qt.alpha(Theme.accent, 0.20) : (root.activeTab === "sysinfo" ? Qt.alpha(Theme.accent, 0.12) : Sys.customModuleBg)
-                            border.width: root.activeTab === "sysinfo" ? 1.5 : 1
-                            border.color: root.activeTab === "sysinfo" ? Theme.accent : Qt.alpha(Theme.fg, 0.16)
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            height: 72
 
                             Row {
                                 anchors.fill: parent
-                                anchors.margins: 10
-                                spacing: 10
+                                anchors.leftMargin: 4
+                                anchors.rightMargin: 4
+                                spacing: 12
 
+                                // Larger Avatar Container (64x64)
                                 Item {
-                                    width: 44
-                                    height: 44
+                                    width: 64
+                                    height: 64
+                                    anchors.verticalCenter: parent.verticalCenter
 
                                     Image {
                                         id: sideAvatarImg
@@ -404,36 +425,109 @@ Process {
                                         anchors.fill: parent
                                         radius: width / 2
                                         color: "transparent"
-                                        border.width: 1.5
+                                        border.width: 2
                                         border.color: Theme.accent
+                                    }
+
+                                    // Avatar Hover Detector
+                                    MouseArea {
+                                        id: avatarHoverMa
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                    }
+
+                                    // Hover Overlay with Edit and Reset Buttons
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        radius: width / 2
+                                        color: Qt.alpha("#000000", 0.75)
+                                        opacity: (avatarHoverMa.containsMouse || editAvatarMa.containsMouse || resetAvatarMa.containsMouse) ? 1.0 : 0.0
+                                        Behavior on opacity { NumberAnimation { duration: 150 } }
+
+                                        Row {
+                                            anchors.centerIn: parent
+                                            spacing: 5
+
+                                            // Edit Avatar Button
+                                            Rectangle {
+                                                width: 22
+                                                height: 22
+                                                radius: 11
+                                                color: editAvatarMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.25)
+                                                Behavior on color { ColorAnimation { duration: 100 } }
+
+                                                Text {
+                                                    anchors.centerIn: parent
+                                                    text: "󰏫"
+                                                    color: editAvatarMa.containsMouse ? Theme.bg : Theme.fg
+                                                    font.family: Theme.fontFamily
+                                                    font.pixelSize: 11
+                                                }
+
+                                                MouseArea {
+                                                    id: editAvatarMa
+                                                    anchors.fill: parent
+                                                    hoverEnabled: true
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: {
+                                                        avatarPickerProc.running = false
+                                                        avatarPickerProc.running = true
+                                                    }
+                                                }
+                                            }
+
+                                            // Reset Avatar Button
+                                            Rectangle {
+                                                width: 22
+                                                height: 22
+                                                radius: 11
+                                                color: resetAvatarMa.containsMouse ? Theme.red : Qt.alpha(Theme.fg, 0.25)
+                                                Behavior on color { ColorAnimation { duration: 100 } }
+
+                                                Text {
+                                                    anchors.centerIn: parent
+                                                    text: "󰁯"
+                                                    color: resetAvatarMa.containsMouse ? Theme.bg : Theme.fg
+                                                    font.family: Theme.fontFamily
+                                                    font.pixelSize: 11
+                                                }
+
+                                                MouseArea {
+                                                    id: resetAvatarMa
+                                                    anchors.fill: parent
+                                                    hoverEnabled: true
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: Sys.setAvatar(Sys.defaultAvatar)
+                                                }
+                                            }
+                                        }
                                     }
                                 }
 
                                 Column {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    spacing: 2
+                                    width: parent.width - 64 - 12
+                                    spacing: 3
 
                                     Text {
+                                        width: parent.width
                                         text: Sys.userName !== "" ? Sys.userName : "User"
                                         color: Theme.fg
-                                        font.pixelSize: 14
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 16
                                         font.bold: true
+                                        elide: Text.ElideRight
                                     }
 
                                     Text {
-                                        text: "Azkia Shell"
-                                        color: root.activeTab === "sysinfo" ? Theme.accent : Qt.alpha(Theme.fg, 0.5)
-                                        font.pixelSize: 11
+                                        width: parent.width
+                                        text: root.getShortDistro(root.sysInfoData ? root.sysInfoData.distro : "")
+                                        color: Qt.alpha(Theme.fg, 0.5)
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 12
+                                        elide: Text.ElideRight
                                     }
                                 }
-                            }
-
-                            MouseArea {
-                                id: profileCardMa
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.activeTab = "sysinfo"
                             }
                         }
 
@@ -446,8 +540,10 @@ Process {
                             Rectangle {
                                 width: parent.width
                                 height: 38
-                                radius: 8
-                                color: catPersMa.containsMouse ? Qt.alpha(Theme.fg, 0.08) : "transparent"
+                                radius: 14
+                                color: catPersMa.containsMouse ? Qt.alpha(Theme.accent, 0.15) : "transparent"
+                                border.width: catPersMa.containsMouse ? 1 : 0
+                                border.color: catPersMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : "transparent"
 
                                 Item {
                                     anchors.fill: parent
@@ -504,10 +600,10 @@ Process {
                                 Rectangle {
                                     width: parent.width
                                     height: 36
-                                    radius: 6
-                                    color: root.activeTab === "appearance" ? Qt.alpha(Theme.accent, 0.20) : (subWallMa.containsMouse ? Qt.alpha(Theme.fg, 0.06) : "transparent")
-                                    border.width: root.activeTab === "appearance" ? 1 : 0
-                                    border.color: Qt.alpha(Theme.accent, 0.40)
+                                    radius: 14
+                                    color: root.activeTab === "appearance" ? (subWallMa.containsMouse ? Theme.accentHover : Theme.accent) : (subWallMa.containsMouse ? Qt.alpha(Theme.accent, 0.15) : "transparent")
+                                    border.width: root.activeTab === "appearance" ? 0 : (subWallMa.containsMouse ? 1 : 0)
+                                    border.color: subWallMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : "transparent"
 
                                     Row {
                                         anchors.fill: parent
@@ -517,7 +613,7 @@ Process {
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: "󰸉"
-                                            color: root.activeTab === "appearance" ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                                            color: root.activeTab === "appearance" ? Theme.bg : (subWallMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.7))
                                             font.family: Theme.fontFamily
                                             font.pixelSize: 15
                                         }
@@ -525,8 +621,9 @@ Process {
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: "Appearance"
-                                            color: root.activeTab === "appearance" ? Theme.fg : Qt.alpha(Theme.fg, 0.8)
+                                            color: root.activeTab === "appearance" ? Theme.bg : (subWallMa.containsMouse ? Theme.fg : Qt.alpha(Theme.fg, 0.8))
                                             font.pixelSize: 13
+                                            font.bold: root.activeTab === "appearance"
                                         }
                                     }
 
@@ -542,10 +639,10 @@ Process {
                                 Rectangle {
                                     width: parent.width
                                     height: 36
-                                    radius: 6
-                                    color: root.activeTab === "theme" ? Qt.alpha(Theme.accent, 0.20) : (subThemeMa.containsMouse ? Qt.alpha(Theme.fg, 0.06) : "transparent")
-                                    border.width: root.activeTab === "theme" ? 1 : 0
-                                    border.color: Qt.alpha(Theme.accent, 0.40)
+                                    radius: 14
+                                    color: root.activeTab === "theme" ? (subThemeMa.containsMouse ? Theme.accentHover : Theme.accent) : (subThemeMa.containsMouse ? Qt.alpha(Theme.accent, 0.15) : "transparent")
+                                    border.width: root.activeTab === "theme" ? 0 : (subThemeMa.containsMouse ? 1 : 0)
+                                    border.color: subThemeMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : "transparent"
 
                                     Row {
                                         anchors.fill: parent
@@ -555,7 +652,7 @@ Process {
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: "󰏘"
-                                            color: root.activeTab === "theme" ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                                            color: root.activeTab === "theme" ? Theme.bg : (subThemeMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.7))
                                             font.family: Theme.fontFamily
                                             font.pixelSize: 15
                                         }
@@ -563,8 +660,9 @@ Process {
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: "Theme & Colors"
-                                            color: root.activeTab === "theme" ? Theme.fg : Qt.alpha(Theme.fg, 0.8)
+                                            color: root.activeTab === "theme" ? Theme.bg : (subThemeMa.containsMouse ? Theme.fg : Qt.alpha(Theme.fg, 0.8))
                                             font.pixelSize: 13
+                                            font.bold: root.activeTab === "theme"
                                         }
                                     }
 
@@ -587,8 +685,10 @@ Process {
                             Rectangle {
                                 width: parent.width
                                 height: 38
-                                radius: 8
-                                color: catBarMa.containsMouse ? Qt.alpha(Theme.fg, 0.08) : "transparent"
+                                radius: 14
+                                color: catBarMa.containsMouse ? Qt.alpha(Theme.accent, 0.15) : "transparent"
+                                border.width: catBarMa.containsMouse ? 1 : 0
+                                border.color: catBarMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : "transparent"
 
                                 Item {
                                     anchors.fill: parent
@@ -645,10 +745,10 @@ Process {
                                 Rectangle {
                                     width: parent.width
                                     height: 36
-                                    radius: 6
-                                    color: root.activeTab === "bar_style" ? Qt.alpha(Theme.accent, 0.20) : (subBarStyleMa.containsMouse ? Qt.alpha(Theme.fg, 0.06) : "transparent")
-                                    border.width: root.activeTab === "bar_style" ? 1 : 0
-                                    border.color: Qt.alpha(Theme.accent, 0.40)
+                                    radius: 14
+                                    color: root.activeTab === "bar_style" ? (subBarStyleMa.containsMouse ? Theme.accentHover : Theme.accent) : (subBarStyleMa.containsMouse ? Qt.alpha(Theme.accent, 0.15) : "transparent")
+                                    border.width: root.activeTab === "bar_style" ? 0 : (subBarStyleMa.containsMouse ? 1 : 0)
+                                    border.color: subBarStyleMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : "transparent"
 
                                     Row {
                                         anchors.fill: parent
@@ -658,7 +758,7 @@ Process {
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: "󰓡"
-                                            color: root.activeTab === "bar_style" ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                                            color: root.activeTab === "bar_style" ? Theme.bg : (subBarStyleMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.7))
                                             font.family: Theme.fontFamily
                                             font.pixelSize: 15
                                         }
@@ -666,8 +766,9 @@ Process {
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: "Bar Style"
-                                            color: root.activeTab === "bar_style" ? Theme.fg : Qt.alpha(Theme.fg, 0.8)
+                                            color: root.activeTab === "bar_style" ? Theme.bg : (subBarStyleMa.containsMouse ? Theme.fg : Qt.alpha(Theme.fg, 0.8))
                                             font.pixelSize: 13
+                                            font.bold: root.activeTab === "bar_style"
                                         }
                                     }
 
@@ -683,10 +784,10 @@ Process {
                                 Rectangle {
                                     width: parent.width
                                     height: 36
-                                    radius: 6
-                                    color: root.activeTab === "module_pos" ? Qt.alpha(Theme.accent, 0.20) : (subModPosMa.containsMouse ? Qt.alpha(Theme.fg, 0.06) : "transparent")
-                                    border.width: root.activeTab === "module_pos" ? 1 : 0
-                                    border.color: Qt.alpha(Theme.accent, 0.40)
+                                    radius: 14
+                                    color: root.activeTab === "module_pos" ? (subModPosMa.containsMouse ? Theme.accentHover : Theme.accent) : (subModPosMa.containsMouse ? Qt.alpha(Theme.accent, 0.15) : "transparent")
+                                    border.width: root.activeTab === "module_pos" ? 0 : (subModPosMa.containsMouse ? 1 : 0)
+                                    border.color: subModPosMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : "transparent"
 
                                     Row {
                                         anchors.fill: parent
@@ -696,7 +797,7 @@ Process {
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: "󰒅"
-                                            color: root.activeTab === "module_pos" ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                                            color: root.activeTab === "module_pos" ? Theme.bg : (subModPosMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.7))
                                             font.family: Theme.fontFamily
                                             font.pixelSize: 15
                                         }
@@ -704,8 +805,9 @@ Process {
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: "Module Position"
-                                            color: root.activeTab === "module_pos" ? Theme.fg : Qt.alpha(Theme.fg, 0.8)
+                                            color: root.activeTab === "module_pos" ? Theme.bg : (subModPosMa.containsMouse ? Theme.fg : Qt.alpha(Theme.fg, 0.8))
                                             font.pixelSize: 13
+                                            font.bold: root.activeTab === "module_pos"
                                         }
                                     }
 
@@ -728,8 +830,10 @@ Process {
                             Rectangle {
                                 width: parent.width
                                 height: 38
-                                radius: 8
-                                color: catBspwmMa.containsMouse ? Qt.alpha(Theme.fg, 0.08) : "transparent"
+                                radius: 14
+                                color: catBspwmMa.containsMouse ? Qt.alpha(Theme.accent, 0.15) : "transparent"
+                                border.width: catBspwmMa.containsMouse ? 1 : 0
+                                border.color: catBspwmMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : "transparent"
 
                                 Item {
                                     anchors.fill: parent
@@ -786,10 +890,10 @@ Process {
                                 Rectangle {
                                     width: parent.width
                                     height: 36
-                                    radius: 6
-                                    color: root.activeTab === "layout" ? Qt.alpha(Theme.accent, 0.20) : (subLayoutMa.containsMouse ? Qt.alpha(Theme.fg, 0.06) : "transparent")
-                                    border.width: root.activeTab === "layout" ? 1 : 0
-                                    border.color: Qt.alpha(Theme.accent, 0.40)
+                                    radius: 14
+                                    color: root.activeTab === "layout" ? (subLayoutMa.containsMouse ? Theme.accentHover : Theme.accent) : (subLayoutMa.containsMouse ? Qt.alpha(Theme.accent, 0.15) : "transparent")
+                                    border.width: root.activeTab === "layout" ? 0 : (subLayoutMa.containsMouse ? 1 : 0)
+                                    border.color: subLayoutMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : "transparent"
 
                                     Row {
                                         anchors.fill: parent
@@ -799,7 +903,7 @@ Process {
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: "󰘸"
-                                            color: root.activeTab === "layout" ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                                            color: root.activeTab === "layout" ? Theme.bg : (subLayoutMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.7))
                                             font.family: Theme.fontFamily
                                             font.pixelSize: 15
                                         }
@@ -807,8 +911,9 @@ Process {
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: "Window Geometry"
-                                            color: root.activeTab === "layout" ? Theme.fg : Qt.alpha(Theme.fg, 0.8)
+                                            color: root.activeTab === "layout" ? Theme.bg : (subLayoutMa.containsMouse ? Theme.fg : Qt.alpha(Theme.fg, 0.8))
                                             font.pixelSize: 13
+                                            font.bold: root.activeTab === "layout"
                                         }
                                     }
 
@@ -827,10 +932,10 @@ Process {
                                 Rectangle {
                                     width: parent.width
                                     height: 36
-                                    radius: 6
-                                    color: root.activeTab === "keybindings" ? Qt.alpha(Theme.accent, 0.20) : (subKeysMa.containsMouse ? Qt.alpha(Theme.fg, 0.06) : "transparent")
-                                    border.width: root.activeTab === "keybindings" ? 1 : 0
-                                    border.color: Qt.alpha(Theme.accent, 0.40)
+                                    radius: 14
+                                    color: root.activeTab === "keybindings" ? (subKeysMa.containsMouse ? Theme.accentHover : Theme.accent) : (subKeysMa.containsMouse ? Qt.alpha(Theme.accent, 0.15) : "transparent")
+                                    border.width: root.activeTab === "keybindings" ? 0 : (subKeysMa.containsMouse ? 1 : 0)
+                                    border.color: subKeysMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : "transparent"
 
                                     Row {
                                         anchors.fill: parent
@@ -840,7 +945,7 @@ Process {
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: "󰌌"
-                                            color: root.activeTab === "keybindings" ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                                            color: root.activeTab === "keybindings" ? Theme.bg : (subKeysMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.7))
                                             font.family: Theme.fontFamily
                                             font.pixelSize: 15
                                         }
@@ -848,8 +953,9 @@ Process {
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: "Keybindings"
-                                            color: root.activeTab === "keybindings" ? Theme.fg : Qt.alpha(Theme.fg, 0.8)
+                                            color: root.activeTab === "keybindings" ? Theme.bg : (subKeysMa.containsMouse ? Theme.fg : Qt.alpha(Theme.fg, 0.8))
                                             font.pixelSize: 13
+                                            font.bold: root.activeTab === "keybindings"
                                         }
                                     }
 
@@ -868,10 +974,10 @@ Process {
                                 Rectangle {
                                     width: parent.width
                                     height: 36
-                                    radius: 6
-                                    color: root.activeTab === "window_rules" ? Qt.alpha(Theme.accent, 0.20) : (subRulesMa.containsMouse ? Qt.alpha(Theme.fg, 0.06) : "transparent")
-                                    border.width: root.activeTab === "window_rules" ? 1 : 0
-                                    border.color: Qt.alpha(Theme.accent, 0.40)
+                                    radius: 14
+                                    color: root.activeTab === "window_rules" ? (subRulesMa.containsMouse ? Theme.accentHover : Theme.accent) : (subRulesMa.containsMouse ? Qt.alpha(Theme.accent, 0.15) : "transparent")
+                                    border.width: root.activeTab === "window_rules" ? 0 : (subRulesMa.containsMouse ? 1 : 0)
+                                    border.color: subRulesMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : "transparent"
 
                                     Row {
                                         anchors.fill: parent
@@ -881,7 +987,7 @@ Process {
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: "󰖲"
-                                            color: root.activeTab === "window_rules" ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                                            color: root.activeTab === "window_rules" ? Theme.bg : (subRulesMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.7))
                                             font.family: Theme.fontFamily
                                             font.pixelSize: 15
                                         }
@@ -889,8 +995,9 @@ Process {
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: "Window Rules"
-                                            color: root.activeTab === "window_rules" ? Theme.fg : Qt.alpha(Theme.fg, 0.8)
+                                            color: root.activeTab === "window_rules" ? Theme.bg : (subRulesMa.containsMouse ? Theme.fg : Qt.alpha(Theme.fg, 0.8))
                                             font.pixelSize: 13
+                                            font.bold: root.activeTab === "window_rules"
                                         }
                                     }
 
@@ -911,10 +1018,10 @@ Process {
                         Rectangle {
                             width: parent.width
                             height: 38
-                            radius: 8
-                            color: root.activeTab === "display" ? Qt.alpha(Theme.accent, 0.20) : (btnDisplayTopMa.containsMouse ? Qt.alpha(Theme.fg, 0.08) : "transparent")
-                            border.width: root.activeTab === "display" ? 1 : 0
-                            border.color: Qt.alpha(Theme.accent, 0.40)
+                            radius: 14
+                            color: root.activeTab === "display" ? (btnDisplayTopMa.containsMouse ? Theme.accentHover : Theme.accent) : (btnDisplayTopMa.containsMouse ? Qt.alpha(Theme.accent, 0.15) : "transparent")
+                            border.width: root.activeTab === "display" ? 0 : (btnDisplayTopMa.containsMouse ? 1 : 0)
+                            border.color: btnDisplayTopMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : "transparent"
 
                             Item {
                                 anchors.fill: parent
@@ -929,7 +1036,7 @@ Process {
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: "󰍹"
-                                        color: Theme.accent
+                                        color: root.activeTab === "display" ? Theme.bg : Theme.accent
                                         font.family: Theme.fontFamily
                                         font.pixelSize: 16
                                     }
@@ -937,7 +1044,7 @@ Process {
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: "Display"
-                                        color: Theme.fg
+                                        color: root.activeTab === "display" ? Theme.bg : Theme.fg
                                         font.family: Theme.fontFamily
                                         font.pixelSize: 13
                                         font.bold: true
@@ -961,10 +1068,10 @@ Process {
                         Rectangle {
                             width: parent.width
                             height: 38
-                            radius: 8
-                            color: root.activeTab === "autolock" ? Qt.alpha(Theme.accent, 0.20) : (btnAutoLockTopMa.containsMouse ? Qt.alpha(Theme.fg, 0.08) : "transparent")
-                            border.width: root.activeTab === "autolock" ? 1 : 0
-                            border.color: Qt.alpha(Theme.accent, 0.40)
+                            radius: 14
+                            color: root.activeTab === "autolock" ? (btnAutoLockTopMa.containsMouse ? Theme.accentHover : Theme.accent) : (btnAutoLockTopMa.containsMouse ? Qt.alpha(Theme.accent, 0.15) : "transparent")
+                            border.width: root.activeTab === "autolock" ? 0 : (btnAutoLockTopMa.containsMouse ? 1 : 0)
+                            border.color: btnAutoLockTopMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : "transparent"
 
                             Item {
                                 anchors.fill: parent
@@ -979,7 +1086,7 @@ Process {
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: "󰌾"
-                                        color: Theme.accent
+                                        color: root.activeTab === "autolock" ? Theme.bg : Theme.accent
                                         font.family: Theme.fontFamily
                                         font.pixelSize: 16
                                     }
@@ -987,7 +1094,7 @@ Process {
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: "Auto Lock"
-                                        color: Theme.fg
+                                        color: root.activeTab === "autolock" ? Theme.bg : Theme.fg
                                         font.pixelSize: 13
                                         font.bold: true
                                     }
@@ -1000,6 +1107,55 @@ Process {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: root.activeTab = "autolock"
+                            }
+                        }
+
+                        // --- MENU 6: ABOUT ---
+                        Rectangle {
+                            width: parent.width
+                            height: 38
+                            radius: 14
+                            color: (root.activeTab === "about" || root.activeTab === "sysinfo") ? (btnAboutTopMa.containsMouse ? Theme.accentHover : Theme.accent) : (btnAboutTopMa.containsMouse ? Qt.alpha(Theme.accent, 0.15) : "transparent")
+                            border.width: (root.activeTab === "about" || root.activeTab === "sysinfo") ? 0 : (btnAboutTopMa.containsMouse ? 1 : 0)
+                            border.color: btnAboutTopMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : "transparent"
+
+                            Item {
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+
+                                Row {
+                                    anchors.left: parent.left
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 8
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "󰋼"
+                                        color: (root.activeTab === "about" || root.activeTab === "sysinfo") ? Theme.bg : Theme.accent
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 16
+                                    }
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "About"
+                                        color: (root.activeTab === "about" || root.activeTab === "sysinfo") ? Theme.bg : Theme.fg
+                                        font.pixelSize: 13
+                                        font.bold: true
+                                    }
+                                }
+                            }
+
+                            MouseArea {
+                                id: btnAboutTopMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.activeTab = "about"
+                                    root.loadSysInfo()
+                                }
                             }
                         }
                     }
@@ -1072,10 +1228,10 @@ Process {
                 anchors.right: parent.right
                 height: parent.height
 
-                // --- 0. SYSTEM INFO PANEL ---
+                // --- 0. SYSTEM INFO / ABOUT PANEL ---
                 Item {
                     anchors.fill: parent
-                    visible: root.activeTab === "sysinfo"
+                    visible: root.activeTab === "sysinfo" || root.activeTab === "about"
 
                     Flickable {
                         id: sysFlick
@@ -1166,7 +1322,7 @@ Process {
                             Rectangle {
                                 width: parent.width
                                 height: sysDetailsCol.height + 32
-                                radius: Sys.moduleRadius
+                                radius: 14
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Sys.customModuleBorder
@@ -1227,8 +1383,10 @@ Process {
                                                 required property var modelData
                                                 width: parent.width
                                                 height: 38
-                                                radius: 8
-                                                color: Qt.alpha(Theme.fg, 0.04)
+                                                radius: 14
+                                                color: Qt.alpha(Theme.fg, 0.05)
+                                                border.width: 1
+                                                border.color: Qt.alpha(Theme.fg, 0.08)
 
                                                 Row {
                                                     anchors.fill: parent
@@ -1278,18 +1436,6 @@ Process {
                 Item {
                     anchors.fill: parent
                     visible: root.activeTab === "appearance"
-
-                    Process {
-                        id: avatarPickerProc
-                        command: ["python3", Sys.scriptPath("select_file.py"), "Select User Avatar Image"]
-                        stdout: StdioCollector {
-                            onStreamFinished: {
-                                if (text && text.trim().length > 0) {
-                                    Sys.setAvatar(text.trim())
-                                }
-                            }
-                        }
-                    }
 
                     Process {
                         id: logoPickerProc
@@ -1362,170 +1508,11 @@ Process {
                             width: wallFlick.width - 24
                             spacing: 16
 
-                            // CARD 1: USER AVATAR SETTINGS
-                            Rectangle {
-                                width: parent.width
-                                height: 86
-                                radius: Sys.moduleRadius
-                                color: Sys.customModuleBg
-                                border.width: 1
-                                border.color: Sys.customModuleBorder
-
-                                Item {
-                                    anchors.fill: parent
-                                    anchors.margins: 16
-
-                                    // Avatar Preview
-                                    Item {
-                                        id: avatarPreviewBox
-                                        width: 52
-                                        height: 52
-                                        anchors.left: parent.left
-                                        anchors.verticalCenter: parent.verticalCenter
-
-                                        Image {
-                                            id: prevAvatarImg
-                                            anchors.fill: parent
-                                            source: Sys.userAvatar
-                                            fillMode: Image.PreserveAspectCrop
-                                            smooth: true
-                                            mipmap: true
-                                            visible: false
-                                        }
-
-                                        Rectangle {
-                                            id: prevAvatarMask
-                                            anchors.fill: parent
-                                            radius: width / 2
-                                            color: "black"
-                                            visible: false
-                                            antialiasing: true
-                                        }
-
-                                        OpacityMask {
-                                            anchors.fill: parent
-                                            source: prevAvatarImg
-                                            maskSource: prevAvatarMask
-                                        }
-
-                                        Rectangle {
-                                            anchors.fill: parent
-                                            radius: width / 2
-                                            color: "transparent"
-                                            border.width: 1.5
-                                            border.color: Theme.accent
-                                        }
-                                    }
-
-                                    // Action Buttons Row (declared first for anchoring)
-                                    Row {
-                                        id: avBtnRow
-                                        anchors.right: parent.right
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        spacing: 8
-
-                                        // Browse Image Button
-                                        Rectangle {
-                                            width: 105
-                                            height: 34
-                                            radius: 8
-                                            color: btnAvBrowseMa.containsMouse ? Qt.alpha(Theme.accent, 0.3) : Qt.alpha(Theme.accent, 0.15)
-                                            border.width: 1
-                                            border.color: Theme.accent
-
-                                            Row {
-                                                anchors.centerIn: parent
-                                                spacing: 6
-
-                                                Text {
-                                                    text: "󰉏"
-                                                    color: Theme.accent
-                                                    font.family: Theme.fontFamily
-                                                    font.pixelSize: 14
-                                                }
-
-                                                Text {
-                                                    text: "Browse..."
-                                                    color: Theme.fg
-                                                    font.pixelSize: 12
-                                                    font.bold: true
-                                                }
-                                            }
-
-                                            MouseArea {
-                                                id: btnAvBrowseMa
-                                                anchors.fill: parent
-                                                hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: {
-                                                    avatarPickerProc.running = false
-                                                    avatarPickerProc.running = true
-                                                }
-                                            }
-                                        }
-
-                                        // Reset Default Button
-                                        Rectangle {
-                                            width: 70
-                                            height: 34
-                                            radius: 8
-                                            color: btnAvResetMa.containsMouse ? Qt.alpha(Theme.fg, 0.15) : Qt.alpha(Theme.fg, 0.06)
-                                            border.width: 1
-                                            border.color: Qt.alpha(Theme.fg, 0.15)
-
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text: "Reset"
-                                                color: Qt.alpha(Theme.fg, 0.8)
-                                                font.pixelSize: 12
-                                            }
-
-                                            MouseArea {
-                                                id: btnAvResetMa
-                                                anchors.fill: parent
-                                                hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: Sys.setAvatar(Sys.defaultAvatar)
-                                            }
-                                        }
-                                    }
-
-                                    // Title & Subtitle Column (Anchored between Preview and Buttons)
-                                    Column {
-                                        anchors.left: avatarPreviewBox.right
-                                        anchors.leftMargin: 16
-                                        anchors.right: avBtnRow.left
-                                        anchors.rightMargin: 12
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        spacing: 4
-
-                                        Text {
-                                            width: parent.width
-                                            text: "User Avatar"
-                                            color: Theme.fg
-                                            font.pixelSize: 15
-                                            font.bold: true
-                                            elide: Text.ElideRight
-                                        }
-
-                                        Text {
-                                            width: parent.width
-                                            text: "Choose a custom profile image across all components."
-                                            color: Qt.alpha(Theme.fg, 0.6)
-                                            font.pixelSize: 12
-                                            wrapMode: Text.WordWrap
-                                            maximumLineCount: 2
-                                            elide: Text.ElideRight
-                                        }
-                                    }
-                                }
-                            }
-
                             // CARD 2: LAUNCHER LOGO SETTINGS
                             Rectangle {
                                 width: parent.width
                                 implicitHeight: logoMainCol.height + 32
-                                radius: Sys.moduleRadius
+                                radius: Theme.cardRadius
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Sys.customModuleBorder
@@ -1550,7 +1537,7 @@ Process {
                                             anchors.verticalCenter: parent.verticalCenter
                                             width: 52
                                             height: 52
-                                            radius: 10
+                                            radius: 16
                                             color: Theme.altbg
                                             border.width: 1
                                             border.color: Qt.alpha(Theme.fg, 0.15)
@@ -1579,25 +1566,25 @@ Process {
                                             Rectangle {
                                                 width: 105
                                                 height: 34
-                                                radius: 8
-                                                color: btnLogoBrowseMa.containsMouse ? Qt.alpha(Theme.accent, 0.3) : Qt.alpha(Theme.accent, 0.15)
-                                                border.width: 1
-                                                border.color: Theme.accent
+                                                radius: Theme.buttonRadius
+                                                color: btnLogoBrowseMa.containsMouse ? Theme.accentHover : Theme.accent
 
                                                 Row {
                                                     anchors.centerIn: parent
                                                     spacing: 6
 
                                                     Text {
+                                                        anchors.verticalCenter: parent.verticalCenter
                                                         text: "󰉏"
-                                                        color: Theme.accent
+                                                        color: Theme.bg
                                                         font.family: Theme.fontFamily
                                                         font.pixelSize: 14
                                                     }
 
                                                     Text {
+                                                        anchors.verticalCenter: parent.verticalCenter
                                                         text: "Browse..."
-                                                        color: Theme.fg
+                                                        color: Theme.bg
                                                         font.pixelSize: 12
                                                         font.bold: true
                                                     }
@@ -1619,7 +1606,7 @@ Process {
                                             Rectangle {
                                                 width: 70
                                                 height: 34
-                                                radius: 8
+                                                radius: Theme.buttonRadius
                                                 color: btnLogoResetMa.containsMouse ? Qt.alpha(Theme.fg, 0.15) : Qt.alpha(Theme.fg, 0.06)
                                                 border.width: 1
                                                 border.color: Qt.alpha(Theme.fg, 0.15)
@@ -1797,7 +1784,7 @@ Process {
                             Rectangle {
                                 width: parent.width
                                 implicitHeight: wallHeaderCol.height + wallGrid.height + 48
-                                radius: Sys.moduleRadius
+                                radius: Theme.cardRadius
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Sys.customModuleBorder
@@ -1831,7 +1818,7 @@ Process {
                                     Rectangle {
                                         width: parent.width
                                         height: 52
-                                        radius: 10
+                                        radius: 16
                                         color: Qt.alpha(Theme.fg, 0.04)
                                         border.width: 1
                                         border.color: Qt.alpha(Theme.fg, 0.16)
@@ -1848,7 +1835,7 @@ Process {
                                                 spacing: 10
 
                                                 Rectangle {
-                                                    width: 32; height: 32; radius: 8
+                                                    width: 32; height: 32; radius: Theme.buttonRadius
                                                     color: Qt.alpha(Theme.accent, 0.15)
                                                     anchors.verticalCenter: parent.verticalCenter
 
@@ -1893,25 +1880,25 @@ Process {
                                                 Rectangle {
                                                     width: 95
                                                     height: 32
-                                                    radius: 6
-                                                    color: btnWallDirBrowseMa.containsMouse ? Qt.alpha(Theme.accent, 0.3) : Qt.alpha(Theme.accent, 0.15)
-                                                    border.width: 1
-                                                    border.color: Theme.accent
+                                                    radius: Theme.buttonRadius
+                                                    color: btnWallDirBrowseMa.containsMouse ? Theme.accentHover : Theme.accent
 
                                                     Row {
                                                         anchors.centerIn: parent
                                                         spacing: 6
 
                                                         Text {
+                                                            anchors.verticalCenter: parent.verticalCenter
                                                             text: "󰉏"
-                                                            color: Theme.accent
+                                                            color: Theme.bg
                                                             font.family: Theme.fontFamily
                                                             font.pixelSize: 13
                                                         }
 
                                                         Text {
+                                                            anchors.verticalCenter: parent.verticalCenter
                                                             text: "Browse..."
-                                                            color: Theme.fg
+                                                            color: Theme.bg
                                                             font.pixelSize: 11
                                                             font.bold: true
                                                         }
@@ -1922,7 +1909,10 @@ Process {
                                                         anchors.fill: parent
                                                         hoverEnabled: true
                                                         cursorShape: Qt.PointingHandCursor
-                                                        onClicked: wallDirPickerProc.running = true
+                                                        onClicked: {
+                                                            wallDirPickerProc.running = false
+                                                            wallDirPickerProc.running = true
+                                                        }
                                                     }
                                                 }
 
@@ -1930,7 +1920,7 @@ Process {
                                                 Rectangle {
                                                     width: 65
                                                     height: 32
-                                                    radius: 6
+                                                    radius: Theme.buttonRadius
                                                     color: btnWallDirResetMa.containsMouse ? Qt.alpha(Theme.fg, 0.15) : Qt.alpha(Theme.fg, 0.08)
                                                     border.width: 1
                                                     border.color: Qt.alpha(Theme.fg, 0.15)
@@ -1977,7 +1967,7 @@ Process {
                                                     anchors.centerIn: parent
                                                     width: parent.width - 6
                                                     height: parent.height - 6
-                                                    radius: 10
+                                                    radius: 16
                                                     clip: true
                                                     color: Qt.alpha(Theme.fg, 0.08)
 
@@ -1988,21 +1978,41 @@ Process {
                                                     border.color: Theme.accent
                                                     Behavior on border.color { ColorAnimation { duration: 150 } }
 
-                                                    Image {
+                                                    Item {
+                                                        id: wallImgWrapper
                                                         anchors.fill: parent
-                                                        source: (root.visible && root.activeTab === "appearance" && modelData.path) ? "file://" + modelData.path : ""
-                                                        fillMode: Image.PreserveAspectCrop
-                                                        smooth: true
-                                                        sourceSize: Qt.size(240, 160)
-                                                        asynchronous: true
-                                                        cache: false
-                                                        opacity: wallMa.containsMouse ? 1.0 : 0.85
-                                                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                                                        visible: false
+
+                                                        Image {
+                                                            anchors.fill: parent
+                                                            source: (root.visible && root.activeTab === "appearance" && modelData.path) ? "file://" + modelData.path : ""
+                                                            fillMode: Image.PreserveAspectCrop
+                                                            smooth: true
+                                                            sourceSize: Qt.size(240, 160)
+                                                            asynchronous: true
+                                                            cache: false
+                                                            opacity: wallMa.containsMouse ? 1.0 : 0.85
+                                                            Behavior on opacity { NumberAnimation { duration: 150 } }
+                                                        }
+                                                    }
+
+                                                    Rectangle {
+                                                        id: wallImgMask
+                                                        anchors.fill: parent
+                                                        radius: 16
+                                                        visible: false
+                                                    }
+
+                                                    OpacityMask {
+                                                        anchors.fill: parent
+                                                        source: wallImgWrapper
+                                                        maskSource: wallImgMask
                                                     }
 
                                                     // Accent glow tint on hover
                                                     Rectangle {
                                                         anchors.fill: parent
+                                                        radius: 16
                                                         color: Qt.alpha(Theme.accent, 0.15)
                                                         visible: wallMa.containsMouse
                                                     }
@@ -2126,7 +2136,7 @@ Process {
                             Rectangle {
                                 width: parent.width
                                 height: 68
-                                radius: Sys.moduleRadius
+                                radius: Theme.cardRadius
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -2219,7 +2229,7 @@ Process {
                             Rectangle {
                                 width: parent.width
                                 height: 68
-                                radius: Sys.moduleRadius
+                                radius: Theme.cardRadius
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -2291,7 +2301,7 @@ Process {
                                             Text {
                                                 anchors.centerIn: parent
                                                 text: "󰑐"
-                                                color: (Sys.customModuleBg != Qt.alpha(Theme.fg, 0.09)) ? Theme.accent : Qt.alpha(Theme.fg, 0.35)
+                                                color: (Sys.customModuleBg != "#3b4252") ? Theme.accent : Qt.alpha(Theme.fg, 0.35)
                                                 font.family: Theme.fontFamily
                                                 font.pixelSize: 15
                                             }
@@ -2301,7 +2311,7 @@ Process {
                                                 anchors.fill: parent
                                                 hoverEnabled: true
                                                 cursorShape: Qt.PointingHandCursor
-                                                onClicked: Sys.setCustomModuleBg(Qt.alpha(Theme.fg, 0.09))
+                                                onClicked: Sys.setCustomModuleBg("#3b4252")
                                             }
                                         }
                                     }
@@ -2312,7 +2322,7 @@ Process {
                             Rectangle {
                                 width: parent.width
                                 height: accentCardCol.implicitHeight + 32
-                                radius: Sys.moduleRadius
+                                radius: Theme.cardRadius
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -2534,7 +2544,7 @@ Process {
                             Rectangle {
                                 width: parent.width
                                 height: 96
-                                radius: Sys.moduleRadius
+                                radius: Theme.cardRadius
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Sys.customModuleBorder
@@ -2551,16 +2561,14 @@ Process {
                                         Rectangle {
                                             width: 64
                                             height: 64
-                                            radius: 12
-                                            color: Qt.alpha(Theme.accent, 0.15)
-                                            border.width: 1
-                                            border.color: Qt.alpha(Theme.accent, 0.4)
+                                            radius: 16
+                                            color: Theme.accent
                                             anchors.verticalCenter: parent.verticalCenter
 
                                             Text {
                                                 anchors.centerIn: parent
                                                 text: "󰍹"
-                                                color: Theme.accent
+                                                color: Theme.bg
                                                 font.family: Theme.fontFamily
                                                 font.pixelSize: 32
                                             }
@@ -2614,7 +2622,7 @@ Process {
                                         Rectangle {
                                             width: 38
                                             height: 38
-                                            radius: 8
+                                            radius: Theme.buttonRadius
                                             color: refDispMa.containsMouse ? Qt.alpha(Theme.accent, 0.2) : Qt.alpha(Theme.fg, 0.06)
                                             anchors.verticalCenter: parent.verticalCenter
                                             border.width: 1
@@ -2644,7 +2652,7 @@ Process {
                             Rectangle {
                                 width: parent.width
                                 height: resCol.height + 32
-                                radius: Sys.moduleRadius
+                                radius: Theme.cardRadius
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Sys.customModuleBorder
@@ -2693,15 +2701,15 @@ Process {
                                         Rectangle {
                                             width: parent.width
                                             height: 42
-                                            radius: 8
-                                            color: root.resDropdownOpen ? Qt.alpha(Theme.accent, 0.15) : (resBoxMa.containsMouse ? Qt.alpha(Theme.fg, 0.1) : Qt.alpha(Theme.fg, 0.05))
-                                            border.width: root.resDropdownOpen ? 1.5 : 1
-                                            border.color: root.resDropdownOpen ? Theme.accent : Qt.alpha(Theme.fg, 0.2)
+                                            radius: 16
+                                            color: root.resDropdownOpen ? Qt.alpha(Theme.accent, 0.25) : (resBoxMa.containsMouse ? Qt.alpha(Theme.accent, 0.15) : Qt.alpha(Theme.fg, 0.05))
+                                            border.width: 1
+                                            border.color: root.resDropdownOpen ? Theme.accent : (resBoxMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : Qt.alpha(Theme.fg, 0.15))
 
                                             Row {
-                                                anchors.fill: parent
-                                                anchors.leftMargin: 12
-                                                anchors.rightMargin: 12
+                                                anchors.left: parent.left
+                                                anchors.leftMargin: 14
+                                                anchors.verticalCenter: parent.verticalCenter
                                                 spacing: 10
 
                                                 Text {
@@ -2720,16 +2728,16 @@ Process {
                                                     font.pixelSize: 13
                                                     font.bold: true
                                                 }
+                                            }
 
-                                                Item { Layout.fillWidth: true }
-
-                                                Text {
-                                                    anchors.verticalCenter: parent.verticalCenter
-                                                    text: root.resDropdownOpen ? "󰅀" : "󰅂"
-                                                    color: root.resDropdownOpen ? Theme.accent : Qt.alpha(Theme.fg, 0.6)
-                                                    font.family: Theme.fontFamily
-                                                    font.pixelSize: 14
-                                                }
+                                            Text {
+                                                anchors.right: parent.right
+                                                anchors.rightMargin: 14
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                text: root.resDropdownOpen ? "󰅀" : "󰅂"
+                                                color: root.resDropdownOpen ? Theme.accent : Qt.alpha(Theme.fg, 0.6)
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: 14
                                             }
 
                                             MouseArea {
@@ -2747,10 +2755,10 @@ Process {
                                             height: root.resDropdownOpen ? Math.min(220, resListCol.height + 12) : 0
                                             visible: height > 0
                                             clip: true
-                                            radius: 8
+                                            radius: 16
                                             color: Sys.customModuleBg
                                             border.width: 1
-                                            border.color: Qt.alpha(Theme.accent, 0.3)
+                                            border.color: Theme.accent
 
                                             Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutQuad } }
 
@@ -2772,9 +2780,11 @@ Process {
                                                             required property string modelData
                                                             width: parent.width
                                                             height: 34
-                                                            radius: 6
+                                                            radius: Theme.buttonRadius
                                                             readonly property bool isSelected: root.displayData.current_mode === modelData
-                                                            color: isSelected ? Qt.alpha(Theme.accent, 0.22) : (resItemMenuMa.containsMouse ? Qt.alpha(Theme.fg, 0.08) : "transparent")
+                                                            color: isSelected ? Theme.accent : (resItemMenuMa.containsMouse ? Qt.alpha(Theme.accent, 0.15) : "transparent")
+                                                            border.width: isSelected ? 0 : (resItemMenuMa.containsMouse ? 1 : 0)
+                                                            border.color: isSelected ? Theme.accent : (resItemMenuMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : "transparent")
 
                                                             Row {
                                                                 anchors.fill: parent
@@ -2785,7 +2795,7 @@ Process {
                                                                 Text {
                                                                     anchors.verticalCenter: parent.verticalCenter
                                                                     text: isSelected ? "󰄬" : " "
-                                                                    color: Theme.accent
+                                                                    color: isSelected ? Theme.bg : Theme.accent
                                                                     font.family: Theme.fontFamily
                                                                     font.pixelSize: 13
                                                                 }
@@ -2793,7 +2803,7 @@ Process {
                                                                 Text {
                                                                     anchors.verticalCenter: parent.verticalCenter
                                                                     text: modelData
-                                                                    color: isSelected ? Theme.accent : Theme.fg
+                                                                    color: isSelected ? Theme.bg : Theme.fg
                                                                     font.family: Theme.fontFamily
                                                                     font.pixelSize: 12
                                                                     font.bold: isSelected
@@ -2823,7 +2833,7 @@ Process {
                             Rectangle {
                                 width: parent.width
                                 height: scaleCol.height + 32
-                                radius: Sys.moduleRadius
+                                radius: Theme.cardRadius
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Sys.customModuleBorder
@@ -2874,11 +2884,11 @@ Process {
                                                 required property string modelData
                                                 width: (parent.width - 36) / 4
                                                 height: 48
-                                                radius: 8
+                                                radius: 16
                                                 readonly property bool isSelected: (root.displayData.current_scale || "100%") === modelData
-                                                color: isSelected ? Qt.alpha(Theme.accent, 0.25) : (scaleItemMa.containsMouse ? Qt.alpha(Theme.fg, 0.12) : Qt.alpha(Theme.fg, 0.05))
-                                                border.width: isSelected ? 1.5 : 1
-                                                border.color: isSelected ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
+                                                color: isSelected ? Theme.accent : (scaleItemMa.containsMouse ? Qt.alpha(Theme.accent, 0.15) : Qt.alpha(Theme.fg, 0.05))
+                                                border.width: 1
+                                                border.color: isSelected ? Theme.accent : (scaleItemMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : Qt.alpha(Theme.fg, 0.12))
 
                                                 Column {
                                                     anchors.centerIn: parent
@@ -2886,7 +2896,7 @@ Process {
                                                     Text {
                                                         anchors.horizontalCenter: parent.horizontalCenter
                                                         text: modelData
-                                                        color: isSelected ? Theme.accent : Theme.fg
+                                                        color: isSelected ? Theme.bg : Theme.fg
                                                         font.family: Theme.fontFamily
                                                         font.pixelSize: 14
                                                         font.bold: true
@@ -2894,7 +2904,7 @@ Process {
                                                     Text {
                                                         anchors.horizontalCenter: parent.horizontalCenter
                                                         text: modelData === "100%" ? "Standard" : (modelData === "115%" ? "Medium" : (modelData === "125%" ? "Large" : "Extra Large"))
-                                                        color: isSelected ? Theme.accent : Qt.alpha(Theme.fg, 0.5)
+                                                        color: isSelected ? Qt.alpha(Theme.bg, 0.85) : Qt.alpha(Theme.fg, 0.5)
                                                         font.family: Theme.fontFamily
                                                         font.pixelSize: 10
                                                     }
@@ -2919,7 +2929,7 @@ Process {
                             Rectangle {
                                 width: parent.width
                                 height: rotCol.height + 32
-                                radius: Sys.moduleRadius
+                                radius: Theme.cardRadius
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Sys.customModuleBorder
@@ -2975,9 +2985,9 @@ Process {
                                                 required property var modelData
                                                 width: (parent.width - 36) / 4
                                                 height: 54
-                                                radius: 8
+                                                radius: 16
                                                 readonly property bool isSelected: (root.displayData.rotation || "normal") === modelData.key
-                                                color: isSelected ? Qt.alpha(Theme.accent, 0.25) : (rotItemMa.containsMouse ? Qt.alpha(Theme.fg, 0.12) : Qt.alpha(Theme.fg, 0.05))
+                                                color: isSelected ? Theme.accent : (rotItemMa.containsMouse ? Qt.alpha(Theme.fg, 0.12) : Qt.alpha(Theme.fg, 0.05))
                                                 border.width: isSelected ? 1.5 : 1
                                                 border.color: isSelected ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
 
@@ -2988,7 +2998,7 @@ Process {
                                                     Text {
                                                         anchors.horizontalCenter: parent.horizontalCenter
                                                         text: "󰍹"
-                                                        color: isSelected ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                                                        color: isSelected ? Theme.bg : Qt.alpha(Theme.fg, 0.7)
                                                         font.family: Theme.fontFamily
                                                         font.pixelSize: 18
                                                         rotation: modelData.rotAngle
@@ -2998,7 +3008,7 @@ Process {
                                                     Text {
                                                         anchors.horizontalCenter: parent.horizontalCenter
                                                         text: modelData.label
-                                                        color: isSelected ? Theme.accent : Theme.fg
+                                                        color: isSelected ? Theme.bg : Theme.fg
                                                         font.family: Theme.fontFamily
                                                         font.pixelSize: 11
                                                         font.bold: isSelected
@@ -3046,7 +3056,7 @@ Process {
                             Rectangle {
                                 width: parent.width
                                 height: 74
-                                radius: Sys.moduleRadius
+                                radius: 14
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -3081,7 +3091,7 @@ Process {
                                             }
 
                                             Text {
-                                                text: "Otomatis mengunci layar saat komputer tidak digunakan (inaktif)."
+                                                text: "Automatically lock the screen when inactive."
                                                 color: Qt.alpha(Theme.fg, 0.5)
                                                 font.pixelSize: 12
                                             }
@@ -3120,8 +3130,8 @@ Process {
                             // CARD 2: LOCK AFTER SLIDER
                             Rectangle {
                                 width: parent.width
-                                height: 104
-                                radius: Sys.moduleRadius
+                                height: 134
+                                radius: 14
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -3145,7 +3155,7 @@ Process {
                                         }
 
                                         Text {
-                                            text: "Durasi waktu inaktif sebelum layar dikunci otomatis"
+                                            text: "Inactive duration before the screen is automatically locked"
                                             color: Qt.alpha(Theme.fg, 0.5)
                                             font.pixelSize: 12
                                         }
@@ -3257,8 +3267,8 @@ Process {
                             // CARD 3: SLEEP AFTER SLIDER
                             Rectangle {
                                 width: parent.width
-                                height: 104
-                                radius: Sys.moduleRadius
+                                height: 134
+                                radius: 14
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -3282,7 +3292,7 @@ Process {
                                         }
 
                                         Text {
-                                            text: "Durasi waktu setelah dikunci sebelum layar mati otomatis (sleep)"
+                                            text: "Duration after lock before the screen turns off (sleep)"
                                             color: Qt.alpha(Theme.fg, 0.5)
                                             font.pixelSize: 12
                                         }
@@ -3391,6 +3401,220 @@ Process {
                                 }
                             }
 
+                            // CARD 4: TOGGLE AUTO SUSPEND
+                            Rectangle {
+                                width: parent.width
+                                height: 74
+                                radius: 14
+                                color: Sys.customModuleBg
+                                border.width: 1
+                                border.color: Qt.alpha(Theme.fg, 0.16)
+                                opacity: Sys.autoLockEnabled ? 1.0 : 0.4
+
+                                Item {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 16
+                                    anchors.rightMargin: 16
+
+                                    Row {
+                                        anchors.left: parent.left
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 12
+
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: "󰤄"
+                                            color: Theme.accent
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: 22
+                                        }
+
+                                        Column {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            spacing: 2
+
+                                            Text {
+                                                text: "Enable Auto Suspend"
+                                                color: Theme.fg
+                                                font.pixelSize: 15
+                                                font.bold: true
+                                            }
+
+                                            Text {
+                                                text: "Automatically suspend system after the screen sleeps."
+                                                color: Qt.alpha(Theme.fg, 0.5)
+                                                font.pixelSize: 12
+                                            }
+                                        }
+                                    }
+
+                                    // Toggle Switch
+                                    Rectangle {
+                                        width: 44
+                                        height: 24
+                                        radius: 12
+                                        color: (Sys.autoLockEnabled && Sys.autoSuspendEnabled) ? Theme.accent : Qt.alpha(Theme.fg, 0.2)
+                                        anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                                        Rectangle {
+                                            width: 18
+                                            height: 18
+                                            radius: 9
+                                            color: "#ffffff"
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            x: (Sys.autoLockEnabled && Sys.autoSuspendEnabled) ? 22 : 4
+                                            Behavior on x { NumberAnimation { duration: 150 } }
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            enabled: Sys.autoLockEnabled
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: Sys.setAutoSuspendEnabled(!Sys.autoSuspendEnabled)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // CARD 5: SUSPEND AFTER SLIDER
+                            Rectangle {
+                                width: parent.width
+                                height: 134
+                                radius: 14
+                                color: Sys.customModuleBg
+                                border.width: 1
+                                border.color: Qt.alpha(Theme.fg, 0.16)
+                                opacity: (Sys.autoLockEnabled && Sys.autoSuspendEnabled) ? 1.0 : 0.4
+
+                                Column {
+                                    anchors.fill: parent
+                                    anchors.margins: 16
+                                    spacing: 12
+
+                                    // Header: Title & Subtitle
+                                    Column {
+                                        width: parent.width
+                                        spacing: 2
+
+                                        Text {
+                                            text: "Suspend After"
+                                            color: Theme.fg
+                                            font.pixelSize: 15
+                                            font.bold: true
+                                        }
+
+                                        Text {
+                                            text: "Duration after screen sleep before the system suspends"
+                                            color: Qt.alpha(Theme.fg, 0.5)
+                                            font.pixelSize: 12
+                                        }
+                                    }
+
+                                    // Bottom Row: Slider, Value Text & Reset Button
+                                    Row {
+                                        width: parent.width
+                                        spacing: 14
+                                        anchors.horizontalCenter: parent.horizontalCenter
+
+                                        // Wide Slider Track
+                                        Item {
+                                            id: suspendTimeoutTrack
+                                            width: parent.width - 55 - 32 - 28
+                                            height: 32
+                                            anchors.verticalCenter: parent.verticalCenter
+
+                                            Rectangle {
+                                                anchors.centerIn: parent
+                                                width: parent.width
+                                                height: 6
+                                                radius: 3
+                                                color: Qt.alpha(Theme.fg, 0.15)
+
+                                                Rectangle {
+                                                    width: parent.width * Math.max(0, Math.min(1.0, (Math.round(Sys.autoSuspendTimeout / 60) - 1) / 59))
+                                                    height: parent.height
+                                                    radius: 3
+                                                    color: Theme.accent
+                                                }
+
+                                                Rectangle {
+                                                    x: Math.max(0, Math.min(parent.width - width, (parent.width * Math.max(0, Math.min(1.0, (Math.round(Sys.autoSuspendTimeout / 60) - 1) / 59))) - width / 2))
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    width: 14
+                                                    height: 14
+                                                    radius: 7
+                                                    color: Theme.accent
+                                                    border.width: 2
+                                                    border.color: Theme.bg
+                                                }
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                enabled: Sys.autoLockEnabled && Sys.autoSuspendEnabled
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+
+                                                function updateVal(mouseX) {
+                                                    const clampedX = Math.max(0, Math.min(suspendTimeoutTrack.width, mouseX))
+                                                    const pct = clampedX / suspendTimeoutTrack.width
+                                                    const mins = Math.max(1, Math.min(60, Math.round(1 + pct * 59)))
+                                                    Sys.setAutoSuspendTimeout(mins * 60)
+                                                }
+
+                                                onPositionChanged: mouse => { if (pressed) updateVal(mouse.x) }
+                                                onClicked: mouse => updateVal(mouse.x)
+                                                onWheel: wheel => {
+                                                    let curMins = Math.round(Sys.autoSuspendTimeout / 60)
+                                                    let nextMins = Math.max(1, Math.min(60, curMins + (wheel.angleDelta.y > 0 ? 1 : -1)))
+                                                    Sys.setAutoSuspendTimeout(nextMins * 60)
+                                                }
+                                            }
+                                        }
+
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: 55
+                                            text: Math.round(Sys.autoSuspendTimeout / 60) + " Min"
+                                            color: Theme.accent
+                                            font.pixelSize: 14
+                                            font.bold: true
+                                            horizontalAlignment: Text.AlignRight
+                                        }
+
+                                        // Reset Button
+                                        Rectangle {
+                                            width: 32
+                                            height: 32
+                                            radius: 16
+                                            color: suspendRstMa.containsMouse ? Qt.alpha(Theme.fg, 0.12) : "transparent"
+                                            border.width: 1
+                                            border.color: Qt.alpha(Theme.fg, 0.15)
+                                            anchors.verticalCenter: parent.verticalCenter
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: "󰑐"
+                                                color: (Sys.autoSuspendTimeout !== 600) ? Theme.accent : Qt.alpha(Theme.fg, 0.35)
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: 15
+                                            }
+
+                                            MouseArea {
+                                                id: suspendRstMa
+                                                anchors.fill: parent
+                                                enabled: Sys.autoLockEnabled && Sys.autoSuspendEnabled
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: Sys.setAutoSuspendTimeout(600)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             // STANDALONE APPLY BUTTON
                             Item {
                                 width: parent.width
@@ -3399,8 +3623,8 @@ Process {
                                 Rectangle {
                                     width: 100
                                     height: 34
-                                    radius: 6
-                                    color: applyBtnMa.containsMouse ? Qt.alpha(Theme.accent, 0.85) : Theme.accent
+                                    radius: Theme.buttonRadius
+                                    color: applyBtnMa.containsMouse ? Theme.accentHover : Theme.accent
                                     anchors.right: parent.right
                                     anchors.verticalCenter: parent.verticalCenter
 
@@ -3462,8 +3686,8 @@ Process {
                             // Card 1: Bar Outer Corner Radius
                             Rectangle {
                                 width: parent.width
-                                height: 104
-                                radius: Sys.moduleRadius
+                                height: 134
+                                radius: 14
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -3571,7 +3795,7 @@ Process {
                                             Text {
                                                 anchors.centerIn: parent
                                                 text: "󰑐"
-                                                color: (Sys.barRadius !== 12) ? Theme.accent : Qt.alpha(Theme.fg, 0.35)
+                                                color: (Sys.barRadius !== 13) ? Theme.accent : Qt.alpha(Theme.fg, 0.35)
                                                 font.family: Theme.fontFamily
                                                 font.pixelSize: 15
                                             }
@@ -3581,7 +3805,7 @@ Process {
                                                 anchors.fill: parent
                                                 hoverEnabled: true
                                                 cursorShape: Qt.PointingHandCursor
-                                                onClicked: Sys.setBarRadius(12)
+                                                onClicked: Sys.setBarRadius(13)
                                             }
                                         }
                                     }
@@ -3591,8 +3815,8 @@ Process {
                             // Card 2: Module Pill Corner Radius
                             Rectangle {
                                 width: parent.width
-                                height: 104
-                                radius: Sys.moduleRadius
+                                height: 134
+                                radius: 14
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -3720,8 +3944,8 @@ Process {
                             // Card 3: Bar Height
                             Rectangle {
                                 width: parent.width
-                                height: 104
-                                radius: Sys.moduleRadius
+                                height: 134
+                                radius: 14
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -3849,8 +4073,8 @@ Process {
                             // Card 4: Bar Margin Top
                             Rectangle {
                                 width: parent.width
-                                height: 104
-                                radius: Sys.moduleRadius
+                                height: 134
+                                radius: 14
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -3975,8 +4199,8 @@ Process {
                             // Card 5: Bar Margin Bottom
                             Rectangle {
                                 width: parent.width
-                                height: 104
-                                radius: Sys.moduleRadius
+                                height: 134
+                                radius: 14
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -4101,8 +4325,8 @@ Process {
                             // Card 6: Bar Margin Left
                             Rectangle {
                                 width: parent.width
-                                height: 104
-                                radius: Sys.moduleRadius
+                                height: 134
+                                radius: 14
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -4227,8 +4451,8 @@ Process {
                             // Card 7: Bar Margin Right
                             Rectangle {
                                 width: parent.width
-                                height: 104
-                                radius: Sys.moduleRadius
+                                height: 134
+                                radius: 14
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -4437,7 +4661,7 @@ Process {
                             Rectangle {
                                 width: parent.width
                                 height: 56
-                                radius: Sys.moduleRadius
+                                radius: 14
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -4516,7 +4740,7 @@ Process {
 
                                 width: parent.width
                                 height: colContent.height + 32
-                                radius: Sys.moduleRadius
+                                radius: Theme.cardRadius
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -4583,7 +4807,7 @@ Process {
 
                                                 width: parent.width
                                                 height: 42
-                                                radius: 8
+                                                radius: 16
                                                 color: Qt.alpha(Theme.fg, 0.04)
                                                 border.width: 1
                                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -4624,7 +4848,7 @@ Process {
 
                                                         // Move Up Button
                                                         Rectangle {
-                                                            width: 28; height: 28; radius: 6
+                                                            width: 28; height: 28; radius: Theme.buttonRadius
                                                             color: (index > 0 && upMa.containsMouse) ? Qt.alpha(Theme.fg, 0.15) : Qt.alpha(Theme.fg, 0.06)
                                                             opacity: index > 0 ? 1.0 : 0.35
 
@@ -4646,7 +4870,7 @@ Process {
 
                                                         // Move Down Button
                                                         Rectangle {
-                                                            width: 28; height: 28; radius: 6
+                                                            width: 28; height: 28; radius: Theme.buttonRadius
                                                             color: (index < (cardComp.moduleList ? cardComp.moduleList.length - 1 : 0) && dnMa.containsMouse) ? Qt.alpha(Theme.fg, 0.15) : Qt.alpha(Theme.fg, 0.06)
                                                             opacity: index < (cardComp.moduleList ? cardComp.moduleList.length - 1 : 0) ? 1.0 : 0.35
 
@@ -4674,7 +4898,7 @@ Process {
 
                                                         // Remove Button
                                                         Rectangle {
-                                                            width: 72; height: 28; radius: 6
+                                                            width: 78; height: 28; radius: Theme.buttonRadius
                                                             color: rmMa.containsMouse ? Qt.alpha("#ed8796", 0.25) : Qt.alpha("#ed8796", 0.10)
                                                             border.width: 1
                                                             border.color: Qt.alpha("#ed8796", 0.40)
@@ -4684,6 +4908,7 @@ Process {
                                                                 spacing: 4
 
                                                                 Text {
+                                                                    anchors.verticalCenter: parent.verticalCenter
                                                                     text: "󰅖"
                                                                     color: "#ed8796"
                                                                     font.family: Theme.fontFamily
@@ -4691,6 +4916,7 @@ Process {
                                                                 }
 
                                                                 Text {
+                                                                    anchors.verticalCenter: parent.verticalCenter
                                                                     text: "Remove"
                                                                     color: "#ed8796"
                                                                     font.pixelSize: 11
@@ -4714,14 +4940,16 @@ Process {
 
                                     // Add Module Button for this Cluster (Clean 1 icon & text)
                                     Rectangle {
-                                        width: parent.width
+                                        width: addModRow.implicitWidth + 24
                                         height: 36
-                                        radius: 8
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        radius: 16
                                         color: addClusterMa.containsMouse ? Qt.alpha(Theme.accent, 0.20) : Qt.alpha(Theme.fg, 0.05)
                                         border.width: 1
                                         border.color: Qt.alpha(Theme.accent, 0.35)
 
                                         Row {
+                                            id: addModRow
                                             anchors.centerIn: parent
                                             spacing: 6
 
@@ -4869,8 +5097,8 @@ Process {
                             // Card 1: BSPWM Window Gap
                             Rectangle {
                                 width: parent.width
-                                height: 104
-                                radius: Sys.moduleRadius
+                                height: 134
+                                radius: 14
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -4992,8 +5220,8 @@ Process {
                             // Card 2: BSPWM Window Border Width
                             Rectangle {
                                 width: parent.width
-                                height: 104
-                                radius: Sys.moduleRadius
+                                height: 134
+                                radius: 14
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -5115,8 +5343,8 @@ Process {
                             // Card 3: Picom Window Corner Radius
                             Rectangle {
                                 width: parent.width
-                                height: 145
-                                radius: Sys.moduleRadius
+                                height: 180
+                                radius: 14
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.16)
@@ -5163,14 +5391,14 @@ Process {
                                                 color: Qt.alpha(Theme.fg, 0.15)
 
                                                 Rectangle {
-                                                    width: parent.width * (Math.max(0, Math.min(30, (root.bspwmData ? (root.bspwmData.corner_radius !== undefined ? root.bspwmData.corner_radius : 12) : 12))) / 30)
+                                                    width: parent.width * (Math.max(0, Math.min(30, (root.bspwmData ? (root.bspwmData.corner_radius !== undefined ? root.bspwmData.corner_radius : 15) : 15))) / 30)
                                                     height: parent.height
                                                     radius: 3
                                                     color: Theme.accent
                                                 }
 
                                                 Rectangle {
-                                                    x: Math.max(0, Math.min(parent.width - width, (parent.width * (Math.max(0, Math.min(30, (root.bspwmData ? (root.bspwmData.corner_radius !== undefined ? root.bspwmData.corner_radius : 12) : 12))) / 30)) - width / 2))
+                                                    x: Math.max(0, Math.min(parent.width - width, (parent.width * (Math.max(0, Math.min(30, (root.bspwmData ? (root.bspwmData.corner_radius !== undefined ? root.bspwmData.corner_radius : 15) : 15))) / 30)) - width / 2))
                                                     anchors.verticalCenter: parent.verticalCenter
                                                     width: 14
                                                     height: 14
@@ -5194,7 +5422,7 @@ Process {
 
                                                 onPositionChanged: mouse => { if (pressed) updateVal(mouse.x) }
                                                 onClicked: mouse => updateVal(mouse.x)
-                                                onWheel: wheel => root.setPicomCornerRadiusUI((root.bspwmData && root.bspwmData.corner_radius !== undefined ? root.bspwmData.corner_radius : 12) + (wheel.angleDelta.y > 0 ? 1 : -1))
+                                                onWheel: wheel => root.setPicomCornerRadiusUI((root.bspwmData && root.bspwmData.corner_radius !== undefined ? root.bspwmData.corner_radius : 15) + (wheel.angleDelta.y > 0 ? 1 : -1))
                                             }
                                         }
 
@@ -5202,7 +5430,7 @@ Process {
                                             anchors.verticalCenter: parent.verticalCenter
                                             width: 45
                                             horizontalAlignment: Text.AlignRight
-                                            text: (root.bspwmData && root.bspwmData.corner_radius !== undefined ? root.bspwmData.corner_radius : 12) + " px"
+                                            text: (root.bspwmData && root.bspwmData.corner_radius !== undefined ? root.bspwmData.corner_radius : 15) + " px"
                                             color: Theme.accent
                                             font.pixelSize: 14
                                             font.bold: true
@@ -5228,7 +5456,7 @@ Process {
                                                 anchors.fill: parent
                                                 hoverEnabled: true
                                                 cursorShape: Qt.PointingHandCursor
-                                                onClicked: root.setPicomCornerRadiusUI(12)
+                                                onClicked: root.setPicomCornerRadiusUI(15)
                                             }
                                         }
                                     }
@@ -5241,8 +5469,8 @@ Process {
                                         Rectangle {
                                             width: 90
                                             height: 28
-                                            radius: 6
-                                            color: applyPicomBtnMa.containsMouse ? Qt.alpha(Theme.accent, 0.85) : Theme.accent
+                                            radius: Theme.buttonRadius
+                                            color: applyPicomBtnMa.containsMouse ? Theme.accentHover : Theme.accent
                                             anchors.right: parent.right
                                             anchors.verticalCenter: parent.verticalCenter
 
@@ -5435,9 +5663,9 @@ Process {
 
                             // Search Input Box
                             Rectangle {
-                                width: parent.width - 152 - 38 - 12
+                                width: parent.width - 150 - 38 - 24
                                 height: parent.height
-                                radius: Sys.moduleRadius
+                                radius: 14
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: searchInput.activeFocus ? Theme.accent : Qt.alpha(Theme.fg, 0.12)
@@ -5461,6 +5689,8 @@ Process {
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: parent.width - 24
                                         color: Theme.fg
+                                        selectionColor: Theme.accent
+                                        selectedTextColor: Theme.bg
                                         font.pixelSize: 13
                                         selectByMouse: true
                                         onTextChanged: keybindingsPanel.searchText = text.toLowerCase()
@@ -5477,9 +5707,9 @@ Process {
 
                             // + Add Keybinding Button
                             Rectangle {
-                                width: 140
+                                width: 150
                                 height: parent.height
-                                radius: Sys.moduleRadius
+                                radius: 14
                                 color: addKbMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : Qt.alpha(Theme.accent, 0.18)
                                 border.width: 1
                                 border.color: Theme.accent
@@ -5489,6 +5719,7 @@ Process {
                                     spacing: 6
 
                                     Text {
+                                        anchors.verticalCenter: parent.verticalCenter
                                         text: "󰐕"
                                         color: Theme.accent
                                         font.family: Theme.fontFamily
@@ -5496,6 +5727,7 @@ Process {
                                     }
 
                                     Text {
+                                        anchors.verticalCenter: parent.verticalCenter
                                         text: "Add Keybinding"
                                         color: Theme.accent
                                         font.pixelSize: 12
@@ -5526,7 +5758,7 @@ Process {
                             Rectangle {
                                 width: 38
                                 height: parent.height
-                                radius: Sys.moduleRadius
+                                radius: 14
                                 color: resetKbMa.containsMouse ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.fg, 0.08)
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.15)
@@ -5579,7 +5811,7 @@ Process {
                                     delegate: Rectangle {
                                         width: kbCol.width
                                         height: 58
-                                        radius: Sys.moduleRadius
+                                        radius: 14
                                         color: Sys.customModuleBg
                                         border.width: 1
                                         border.color: Qt.alpha(Theme.fg, 0.16)
@@ -5595,7 +5827,7 @@ Process {
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 width: Math.max(130, hotkeyText.implicitWidth + 20)
                                                 height: 28
-                                                radius: 6
+                                                radius: Theme.buttonRadius
                                                 color: Qt.alpha(Theme.accent, 0.14)
                                                 border.width: 1
                                                 border.color: Qt.alpha(Theme.accent, 0.3)
@@ -5843,7 +6075,7 @@ Process {
                             width: 480
                             height: keybindingsPanel.appPickerOpen ? 480 : (modalBox.isDuplicate ? 360 : 330)
                             anchors.centerIn: parent
-                            radius: 12
+                            radius: Theme.windowRadius
                             color: Theme.bg
                             border.width: 1
                             border.color: modalBox.isDuplicate ? Theme.red : (keybindingsPanel.isRecordingHotkey ? Theme.accent : Qt.alpha(Theme.accent, 0.40))
@@ -5944,7 +6176,7 @@ Process {
 
                                         // Super Toggle
                                         Rectangle {
-                                            width: 62; height: 28; radius: 6
+                                            width: 62; height: 28; radius: Theme.buttonRadius
                                             color: modalBox.modSuper ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.fg, 0.08)
                                             border.width: 1
                                             border.color: modalBox.modSuper ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
@@ -5969,7 +6201,7 @@ Process {
 
                                         // Ctrl Toggle
                                         Rectangle {
-                                            width: 52; height: 28; radius: 6
+                                            width: 52; height: 28; radius: Theme.buttonRadius
                                             color: modalBox.modCtrl ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.fg, 0.08)
                                             border.width: 1
                                             border.color: modalBox.modCtrl ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
@@ -5994,7 +6226,7 @@ Process {
 
                                         // Alt Toggle
                                         Rectangle {
-                                            width: 52; height: 28; radius: 6
+                                            width: 52; height: 28; radius: Theme.buttonRadius
                                             color: modalBox.modAlt ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.fg, 0.08)
                                             border.width: 1
                                             border.color: modalBox.modAlt ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
@@ -6019,7 +6251,7 @@ Process {
 
                                         // Shift Toggle
                                         Rectangle {
-                                            width: 56; height: 28; radius: 6
+                                            width: 56; height: 28; radius: Theme.buttonRadius
                                             color: modalBox.modShift ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.fg, 0.08)
                                             border.width: 1
                                             border.color: modalBox.modShift ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
@@ -6053,7 +6285,7 @@ Process {
                                         Rectangle {
                                             width: parent.width - 38
                                             height: parent.height
-                                            radius: 8
+                                            radius: Theme.buttonRadius
                                             color: Sys.customModuleBg
                                             border.width: 1
                                             border.color: modalBox.isDuplicate ? Theme.red : (kbKeyInput.activeFocus ? Theme.accent : Qt.alpha(Theme.fg, 0.15))
@@ -6076,6 +6308,8 @@ Process {
                                                     anchors.verticalCenter: parent.verticalCenter
                                                     width: parent.width - 45
                                                     color: modalBox.isDuplicate ? Theme.red : Theme.fg
+                                                    selectionColor: Theme.accent
+                                                    selectedTextColor: Theme.bg
                                                     font.pixelSize: 12
                                                     font.bold: true
                                                     selectByMouse: true
@@ -6141,7 +6375,7 @@ Process {
                                     Rectangle {
                                         width: parent.width
                                         height: 24
-                                        radius: 6
+                                        radius: Theme.buttonRadius
                                         color: modalBox.isDuplicate ? Qt.alpha(Theme.red, 0.12) : Qt.alpha(Theme.accent, 0.12)
                                         border.width: 1
                                         border.color: modalBox.isDuplicate ? Qt.alpha(Theme.red, 0.3) : Qt.alpha(Theme.accent, 0.3)
@@ -6170,7 +6404,7 @@ Process {
                                     Rectangle {
                                         width: parent.width
                                         height: 28
-                                        radius: 6
+                                        radius: Theme.buttonRadius
                                         color: Qt.alpha(Theme.red, 0.15)
                                         border.width: 1
                                         border.color: Qt.alpha(Theme.red, 0.4)
@@ -6221,7 +6455,7 @@ Process {
                                     Rectangle {
                                         width: parent.width
                                         height: 34
-                                        radius: 8
+                                        radius: Theme.buttonRadius
                                         color: Sys.customModuleBg
                                         border.width: 1
                                         border.color: kbDescInput.activeFocus ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
@@ -6233,6 +6467,8 @@ Process {
                                             anchors.rightMargin: 10
                                             verticalAlignment: TextInput.AlignVCenter
                                             color: Theme.fg
+                                            selectionColor: Theme.accent
+                                            selectedTextColor: Theme.bg
                                             font.pixelSize: 12
                                             selectByMouse: true
 
@@ -6267,7 +6503,7 @@ Process {
                                     Rectangle {
                                         width: parent.width
                                         height: 36
-                                        radius: 8
+                                        radius: Theme.buttonRadius
                                         color: Sys.customModuleBg
                                         border.width: 1
                                         border.color: kbCmdInput.activeFocus ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
@@ -6279,6 +6515,8 @@ Process {
                                             anchors.rightMargin: 10
                                             verticalAlignment: TextInput.AlignVCenter
                                             color: Theme.fg
+                                            selectionColor: Theme.accent
+                                            selectedTextColor: Theme.bg
                                             font.pixelSize: 12
                                             selectByMouse: true
                                             onActiveFocusChanged: {
@@ -6309,7 +6547,7 @@ Process {
                                     width: parent.width
                                     height: 180
                                     visible: keybindingsPanel.appPickerOpen
-                                    radius: 8
+                                    radius: 16
                                     color: Sys.customModuleBg
                                     border.width: 1
                                     border.color: Qt.alpha(Theme.accent, 0.3)
@@ -6340,7 +6578,7 @@ Process {
                                                 delegate: Rectangle {
                                                     width: appPickerCol.width
                                                     height: 32
-                                                    radius: 6
+                                                    radius: Theme.buttonRadius
                                                     color: instAppMa.containsMouse ? Qt.alpha(Theme.accent, 0.22) : Qt.alpha(Theme.fg, 0.04)
                                                     border.width: 1
                                                     border.color: instAppMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.08)
@@ -6404,7 +6642,7 @@ Process {
 
                                     // Cancel
                                     Rectangle {
-                                        width: 80; height: 32; radius: 6
+                                        width: 80; height: 32; radius: Theme.buttonRadius
                                         color: cancelMa.containsMouse ? Qt.alpha(Theme.fg, 0.15) : Qt.alpha(Theme.fg, 0.08)
 
                                         Text {
@@ -6429,8 +6667,8 @@ Process {
 
                                     // Save / Add
                                     Rectangle {
-                                        width: 90; height: 32; radius: 6
-                                        color: modalBox.isDuplicate ? Qt.alpha(Theme.fg, 0.1) : (saveMa.containsMouse ? Qt.alpha(Theme.accent, 0.85) : Theme.accent)
+                                        width: 90; height: 32; radius: Theme.buttonRadius
+                                        color: modalBox.isDuplicate ? Qt.alpha(Theme.fg, 0.1) : (saveMa.containsMouse ? Theme.accentHover : Theme.accent)
                                         opacity: modalBox.isDuplicate ? 0.5 : 1.0
 
                                         Text {
@@ -6521,9 +6759,9 @@ Process {
 
                             // Search Input Box
                             Rectangle {
-                                width: parent.width - 152 - 38 - 12
+                                width: parent.width - 160 - 38 - 24
                                 height: parent.height
-                                radius: Sys.moduleRadius
+                                radius: 14
                                 color: Sys.customModuleBg
                                 border.width: 1
                                 border.color: ruleSearchInput.activeFocus ? Theme.accent : Qt.alpha(Theme.fg, 0.12)
@@ -6547,6 +6785,8 @@ Process {
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: parent.width - 24
                                         color: Theme.fg
+                                        selectionColor: Theme.accent
+                                        selectedTextColor: Theme.bg
                                         font.pixelSize: 13
                                         selectByMouse: true
                                         onTextChanged: windowRulesPanel.searchText = text.toLowerCase()
@@ -6563,9 +6803,9 @@ Process {
 
                             // + Add Window Rule Button
                             Rectangle {
-                                width: 140
+                                width: 160
                                 height: parent.height
-                                radius: Sys.moduleRadius
+                                radius: 14
                                 color: addRuleMa.containsMouse ? Qt.alpha(Theme.accent, 0.30) : Qt.alpha(Theme.accent, 0.18)
                                 border.width: 1
                                 border.color: Theme.accent
@@ -6575,6 +6815,7 @@ Process {
                                     spacing: 6
 
                                     Text {
+                                        anchors.verticalCenter: parent.verticalCenter
                                         text: "󰐕"
                                         color: Theme.accent
                                         font.family: Theme.fontFamily
@@ -6582,6 +6823,7 @@ Process {
                                     }
 
                                     Text {
+                                        anchors.verticalCenter: parent.verticalCenter
                                         text: "Add Window Rule"
                                         color: Theme.accent
                                         font.pixelSize: 12
@@ -6608,7 +6850,7 @@ Process {
                             Rectangle {
                                 width: 38
                                 height: parent.height
-                                radius: Sys.moduleRadius
+                                radius: 14
                                 color: resetRulesMa.containsMouse ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.fg, 0.08)
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.fg, 0.15)
@@ -6660,7 +6902,7 @@ Process {
                                     delegate: Rectangle {
                                         width: rulesCol.width
                                         height: 52
-                                        radius: Sys.moduleRadius
+                                        radius: 14
                                         color: Sys.customModuleBg
                                         border.width: 1
                                         border.color: Qt.alpha(Theme.fg, 0.16)
@@ -6853,7 +7095,7 @@ Process {
                             width: 520
                             height: Math.min(parent.height - 40, 560)
                             anchors.centerIn: parent
-                            radius: 12
+                            radius: Theme.windowRadius
                             color: Theme.bg
                             border.width: 1
                             border.color: Qt.alpha(Theme.accent, 0.40)
@@ -7071,6 +7313,8 @@ Process {
                                                         anchors.rightMargin: 10
                                                         verticalAlignment: TextInput.AlignVCenter
                                                         color: Theme.fg
+                                                        selectionColor: Theme.accent
+                                                        selectedTextColor: Theme.bg
                                                         font.pixelSize: 12
                                                         selectByMouse: true
                                                         onActiveFocusChanged: {
@@ -7122,6 +7366,8 @@ Process {
                                                         anchors.rightMargin: 10
                                                         verticalAlignment: TextInput.AlignVCenter
                                                         color: Theme.fg
+                                                        selectionColor: Theme.accent
+                                                        selectedTextColor: Theme.bg
                                                         font.pixelSize: 12
                                                         selectByMouse: true
 
@@ -7251,7 +7497,7 @@ Process {
                                                     delegate: Rectangle {
                                                         height: 26
                                                         width: stateTxt.implicitWidth + 16
-                                                        radius: 6
+                                                        radius: Theme.buttonRadius
                                                         color: ruleModalBox.selState === modelData.val ? Qt.alpha(Theme.accent, 0.22) : Qt.alpha(Theme.fg, 0.06)
                                                         border.width: 1
                                                         border.color: ruleModalBox.selState === modelData.val ? Theme.accent : Qt.alpha(Theme.fg, 0.12)
@@ -7301,7 +7547,7 @@ Process {
                                                     delegate: Rectangle {
                                                         height: 26
                                                         width: layerTxt.implicitWidth + 16
-                                                        radius: 6
+                                                        radius: Theme.buttonRadius
                                                         color: ruleModalBox.selLayer === modelData.val ? Qt.alpha(Theme.accent, 0.22) : Qt.alpha(Theme.fg, 0.06)
                                                         border.width: 1
                                                         border.color: ruleModalBox.selLayer === modelData.val ? Theme.accent : Qt.alpha(Theme.fg, 0.12)
@@ -7574,7 +7820,7 @@ Process {
 
                                     // Cancel
                                     Rectangle {
-                                        width: 80; height: 32; radius: 6
+                                        width: 80; height: 32; radius: Theme.buttonRadius
                                         color: cancelRuleMa.containsMouse ? Qt.alpha(Theme.fg, 0.15) : Qt.alpha(Theme.fg, 0.08)
 
                                         Text {
@@ -7595,8 +7841,8 @@ Process {
 
                                     // Save / Add
                                     Rectangle {
-                                        width: 90; height: 32; radius: 6
-                                        color: saveRuleMa.containsMouse ? Qt.alpha(Theme.accent, 0.85) : Theme.accent
+                                        width: 90; height: 32; radius: Theme.buttonRadius
+                                        color: saveRuleMa.containsMouse ? Theme.accentHover : Theme.accent
 
                                         Text {
                                             anchors.centerIn: parent
@@ -7654,7 +7900,7 @@ Process {
                 width: 440
                 height: Math.min(480, modalCol.height + 36)
                 anchors.centerIn: parent
-                radius: 12
+                radius: Theme.windowRadius
                 color: Theme.bg
                 border.width: 1
                 border.color: Qt.alpha(Theme.accent, 0.40)
@@ -7757,7 +8003,7 @@ Process {
 
                                     width: parent.width
                                     height: 44
-                                    radius: 8
+                                    radius: 16
                                     color: Qt.alpha(Theme.fg, 0.04)
                                     border.width: 1
                                     border.color: Qt.alpha(Theme.fg, 0.16)
@@ -7767,26 +8013,8 @@ Process {
                                         anchors.leftMargin: 12
                                         anchors.rightMargin: 12
 
-                                        // Avatar Preview
-                                        Item {
-                                            id: avatarPreviewBox
-                                            width: 52
-                                            height: 52
-                                            anchors.left: parent.left
-                                            anchors.verticalCenter: parent.verticalCenter
-
-                                            Image {
-                                                id: prevAvatarImg
-                                                width: 52
-                                                height: 52
-                                                anchors.left: parent.left
-                                                anchors.verticalCenter: parent.verticalCenter
-                                            }
-                                        }
-
                                         Row {
-                                            anchors.left: avatarPreviewBox.right
-                                            anchors.leftMargin: 10
+                                            anchors.left: parent.left
                                             anchors.verticalCenter: parent.verticalCenter
                                             spacing: 10
 
@@ -7823,7 +8051,7 @@ Process {
                                             anchors.verticalCenter: parent.verticalCenter
                                             width: 68
                                             height: 28
-                                            radius: 6
+                                            radius: Theme.buttonRadius
                                             color: addPopMa.containsMouse ? Qt.alpha(Theme.accent, 0.35) : Qt.alpha(Theme.accent, 0.20)
                                             border.width: 1
                                             border.color: Theme.accent

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="512"
+   height="512"
+   version="1.1"
+   viewBox="0 0 135.467 135.467"
+   id="svg3"
+   sodipodi:docname="fedora-purple.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   inkscape:export-filename="../../.config/fastfetch/fedora-purple.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs3">
+    <linearGradient
+       id="linearGradient1"
+       inkscape:collect="always">
+      <stop
+         style="stop-color:#bd93f9;stop-opacity:1;"
+         offset="0"
+         id="stop1" />
+      <stop
+         style="stop-color:#f38ba8;stop-opacity:1;"
+         offset="1"
+         id="stop2" />
+    </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient1"
+       id="linearGradient2"
+       x1="17.037807"
+       y1="26.766033"
+       x2="17.037807"
+       y2="5.5513535"
+       gradientUnits="userSpaceOnUse" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient1"
+       id="linearGradient3"
+       gradientUnits="userSpaceOnUse"
+       x1="17.037807"
+       y1="26.766033"
+       x2="17.037807"
+       y2="5.5513535" />
+  </defs>
+  <sodipodi:namedview
+     id="namedview3"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="1.1241893"
+     inkscape:cx="295.32393"
+     inkscape:cy="185.02222"
+     inkscape:window-width="1900"
+     inkscape:window-height="1021"
+     inkscape:window-x="8"
+     inkscape:window-y="47"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg3" />
+  <title
+     id="title1">Fedora logo (2021)</title>
+  <g
+     transform="matrix(5.1724605,0,0,5.2845467,-24.922315,-39.34598)"
+     id="g2"
+     style="fill:url(#linearGradient2);fill-opacity:1">
+    <path
+       d="m 23.3724,7.83534 c -3.02899,0 -5.70466,2.23659 -6.07508,5.17074 -0.0249,0.245618 -0.03219,0.422251 -0.03359,0.644922 l 0.0036,11.9967 c 0,2.30124 -1.75621,3.86746 -3.95066,3.86746 -2.19748,0 -3.96772,-1.72215 -3.96772,-3.87108 0.03604,-2.35909 1.96132,-3.85552 4.20698,-3.92069 h 0.01188 l 2.27996,-0.02066 v -3.16725 l -2.27996,0.01654 c -4.08733,-0.03604 -7.33169,3.10302 -7.45019,7.09362 0,3.88059 3.25103,7.04453 7.19801,7.04453 3.72317,0 6.8214,-2.85281 7.15977,-6.42235 0.04877,-1.21501 0.02532,-2.81843 0.02532,-2.81843 0.0068,-0.66023 -0.0105,-0.42328 -0.0036,-1.73426 l 2.82773,-0.02016 c 2.18818,0.01519 2.16344,-3.21792 -0.02532,-3.17345 l -2.80293,0.02066 c 0,-1.62735 0.02609,-3.24483 0,-4.87464 0.0019,-1.40961 1.36289,-2.65513 2.87321,-2.65513 1.5107,0 3.10885,0.739495 3.10885,2.65513 0,0.27369 -0.0057,0.43294 -0.02119,0.534336 -0.168616,0.888402 0.450459,1.73786 1.36219,1.86604 0.911733,0.126699 1.74882,-0.519356 1.83917,-1.418 0.05223,-0.355248 0.05013,-0.66852 0.05013,-0.981853 0,-3.37798 -3.07825,-5.82652 -6.33863,-5.82652 z"
+       fill="#ffffff"
+       id="path2"
+       style="fill:url(#linearGradient3);fill-opacity:1" />
+  </g>
+</svg>

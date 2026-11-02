@@ -1,5 +1,5 @@
 super + shift + r
-	bspc wm -r notify-send 'bspwm' 'Restarted'
+	bspc wm -r; notify-send 'bspwm' 'Restarted'
 
 super + space
 	qs -p ~/.config/bspwm/azkia-shell ipc call launcher toggle
@@ -13,8 +13,30 @@ super + m
 super + l
 	qs -p ~/.config/bspwm/azkia-shell ipc call lockscreen lock
 
+# Azkia Shell Popups & Settings
+super + a
+	qs -p ~/.config/bspwm/azkia-shell ipc call controlcenter toggle
+
+super + b
+	qs -p ~/.config/bspwm/azkia-shell ipc call battery toggle
+
+super + d
+	qs -p ~/.config/bspwm/azkia-shell ipc call calendar toggle
+
+super + k
+	qs -p ~/.config/bspwm/azkia-shell ipc call clipboard toggle
+
+super + n
+	qs -p ~/.config/bspwm/azkia-shell ipc call notifications toggle
+
+super + s
+	qs -p ~/.config/bspwm/azkia-shell ipc call settings toggle
+
+super + t
+	qs -p ~/.config/bspwm/azkia-shell ipc call systemmonitor toggle
+
 super + Escape
-	pkill -USR1 -x sxhkd notify-send 'sxhkd' 'Reloaded config'
+	pkill -USR1 -x sxhkd; notify-send 'sxhkd' 'Reloaded config'
 
 super + i
 	bspc node -R 90
@@ -30,14 +52,14 @@ super + alt + g
 
 # Mirror display (duplicate)
 super + alt + d
-    xrandr --output HDMI-1 --same-as eDP-1 --auto
+    ~/.config/bspwm/scripts/display_setup.sh mirror
 
 # Extend display (right side)
 super + alt + e
-    xrandr --output HDMI-1 --auto --right-of eDP-1
+    ~/.config/bspwm/scripts/display_setup.sh extend
 
 super + alt + o
-    xrandr --output HDMI-1 --off
+    ~/.config/bspwm/scripts/display_setup.sh off
 
 super + c
 	bspc node -c
@@ -54,23 +76,30 @@ super + f
 super + Tab
 	bspc node -f last
 
+# Azkia Window Switcher (Alt + Tab)
 alt + Tab
-   bspc desktop -f next.local
+	test -f /dev/shm/azkia_switcher_active || qs -p ~/.config/bspwm/azkia-shell ipc call windowswitcher next
+
+alt + shift + Tab
+	test -f /dev/shm/azkia_switcher_active || qs -p ~/.config/bspwm/azkia-shell ipc call windowswitcher prev
 
 ctrl + Tab
   bspc desktop -f prev.local
 
-super + { Left, Down, Up, Right}
+super + {Left, Down, Up, Right}
 	bspc node -f {west,south,north,east}
 
-super + shift + { Left, Down, Up, Right}
+super + shift + {Left, Down, Up, Right}
 	bspc node -s {west,south,north,east}
 
-super + {_,shift + }{1-9,0}
-	bspc {desktop --focus,node --to-desktop} 'focused:^{1-9,10}' --follow
+super + {1-9,0}
+	~/.config/bspwm/scripts/switch_tag.sh {1-9,10} focus
+
+super + shift + {1-9,0}
+	~/.config/bspwm/scripts/switch_tag.sh {1-9,10} send
 
 super + ctrl + {1-9,0}
-  bspc node --to-desktop 'focused:^{1-9,10}'
+  bspc node --to-desktop '{1-9,10}'
 
 super + ctrl + {Left,Down,Up,Right}
 	{bspc node -z left -40 0
@@ -101,17 +130,118 @@ XF86MonBrightnessDown
 super + shift + Return
 	thunar
 
-super + s
-	flameshot gui
-	
+super + shift + w
+	zapfast
+
+super + shift + f
+#	firefox
+# firefox-esr
+	floorp
+
+super + shift + z
+	zen
+
+super + shift + g
+# thorium-browser
+	thorium-browser --password-store=gnome-libsecret
+
+super + shift + v
+	vivaldi
+
+super + shift + q
+	qgis
+
+super + shift + k
+	kdenlive
+
+super + shift + o
+	obs
+
+super + shift + i
+	inkscape
+
+super + shift + e
+	geany
+
+super + alt + b
+	wezterm -e btop
+
+super + alt + Return
+	mate-calc
+
+# Open Neovim Editor
+super + shift + n
+	kitty -e nvim
+
 Print
+	flameshot gui
+
+super + Print
 	flameshot screen
 
-super + shift + s
-	flameshot screen
+alt + s
+	flameshot gui
 
+# Open Terminal (Kitty)
 super + Return
-	~/.config/bspwm/scripts/open-terminal.sh
+	kitty
+
+super + p
+	bspcolorpicker
+
+super + shift + p
+	~/.config/bspwm/scripts/picom-refresh.sh
+
+super + shift + m
+	qs -p ~/.config/bspwm/azkia-shell ipc call audioplayer toggle
+
+
+
 
 super + h
     ~/.config/bspwm/scripts/toggle-hidden.sh
+
+
+# Custom Keybinding
+
+
+# Custom Keybinding
+
+
+# Open Antigravity IDE
+super + shift + a
+	antigravity
+
+
+# Custom Keybinding
+
+
+# Custom Keybinding
+
+
+# Custom Keybinding
+super + shift + d
+	"$HOME/.local/ABDownloadManager/bin/ABDownloadManager"
+
+
+# Custom Keybinding
+
+
+# Custom Keybinding
+super + alt + a
+	xarchiver
+
+
+# Custom Keybinding
+super + shift + t
+	telegram-desktop
+
+
+# Custom Keybinding
+super + shift + x
+	xarchiver
+
+
+# Brave Browser
+super + shift + b
+	brave-browser --enable-features=NativeNotifications

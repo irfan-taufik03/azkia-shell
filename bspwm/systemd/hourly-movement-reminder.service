@@ -1,0 +1,6 @@
+[Unit]
+Description=Hourly Movement Reminder
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/bspwm/scripts/hourly_movement.sh

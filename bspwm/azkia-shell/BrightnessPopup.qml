@@ -41,10 +41,8 @@ Popout {
         Quickshell.execDetached(["brightnessctl", "s", pct + "%"])
     }
 
-    function toggle() { visible = !visible }
-
     function showPopup() {
-        visible = true
+        open()
         hideTimer.restart()
     }
 
@@ -61,7 +59,7 @@ Popout {
     Timer {
         id: hideTimer
         interval: 2000
-        onTriggered: root.visible = false
+        onTriggered: root.close()
     }
 
     IpcHandler {

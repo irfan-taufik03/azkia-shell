@@ -7,9 +7,7 @@ Popout {
     id: root
 
     cardWidth: 350
-    cardHeight: 430
-
-    function toggle() { visible = !visible }
+    cardHeight: 420
 
     IpcHandler {
         target: "notifications"
@@ -17,7 +15,7 @@ Popout {
     }
 
     property string searchText: ""
-    property int selectedIndex: 0
+    property int selectedIndex: -1
 
     readonly property var filteredNotifications: {
         if (!root.searchText) return Sys.historyNotifications
@@ -28,11 +26,11 @@ Popout {
         })
     }
 
-    onFilteredNotificationsChanged: root.selectedIndex = 0
+    onFilteredNotificationsChanged: root.selectedIndex = -1
 
     onVisibleChanged: {
         if (visible) {
-            root.selectedIndex = 0
+            root.selectedIndex = -1
             focusTimer.restart()
         } else {
             Quickshell.execDetached(["python3", Sys.scriptPath("x11_unfocus.py"), "--restore"])
@@ -50,13 +48,15 @@ Popout {
         }
     }
 
-    Column {
+    Item {
         anchors.fill: parent
-        spacing: 10
 
         // ===== HEADER =====
         Item {
-            width: parent.width
+            id: headerRow
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
             height: 28
 
             Row {
@@ -113,7 +113,7 @@ Popout {
                     anchors.verticalCenter: parent.verticalCenter
                     height: 24
                     width: dndRow.implicitWidth + 12
-                    radius: 6
+                    radius: 14
                     color: Sys.dndOn ? Qt.alpha(Theme.yellow, 0.25) : (dndMa.containsMouse ? Qt.alpha(Theme.fg, 0.12) : Qt.alpha(Theme.fg, 0.08))
                     border.width: 1
                     border.color: Sys.dndOn ? Theme.yellow : (dndMa.containsMouse ? Qt.alpha(Theme.yellow, 0.4) : Sys.customModuleBorder)
@@ -156,7 +156,7 @@ Popout {
                     anchors.verticalCenter: parent.verticalCenter
                     height: 24
                     width: clearRow.implicitWidth + 12
-                    radius: 6
+                    radius: 14
                     color: clearMa.containsMouse ? Qt.alpha(Theme.red, 0.25) : Qt.alpha(Theme.fg, 0.08)
                     border.width: 1
                     border.color: clearMa.containsMouse ? Qt.alpha(Theme.red, 0.5) : Sys.customModuleBorder
@@ -197,9 +197,13 @@ Popout {
 
         // ===== SEARCH BAR =====
         Rectangle {
-            width: parent.width
+            id: searchBar
+            anchors.top: headerRow.bottom
+            anchors.topMargin: 10
+            anchors.left: parent.left
+            anchors.right: parent.right
             height: 32
-            radius: 8
+            radius: 14
             color: Qt.alpha(Theme.fg, 0.06)
             border.width: 1
             border.color: searchInput.activeFocus ? Theme.accent : Sys.customModuleBorder
@@ -223,19 +227,30 @@ Popout {
                     anchors.verticalCenter: parent.verticalCenter
                     width: parent.width - 25
                     color: Theme.fg
+                    selectionColor: Theme.accent
+                    selectedTextColor: Theme.bg
                     font.family: Theme.fontFamily
                     font.pixelSize: 11
+                    selectByMouse: true
                     clip: true
                     onTextChanged: root.searchText = text.toLowerCase().trim()
 
                     Keys.onDownPressed: {
                         if (root.filteredNotifications.length > 0) {
-                            root.selectedIndex = Math.min(root.filteredNotifications.length - 1, root.selectedIndex + 1)
+                            if (root.selectedIndex < 0) {
+                                root.selectedIndex = 0
+                            } else {
+                                root.selectedIndex = Math.min(root.filteredNotifications.length - 1, root.selectedIndex + 1)
+                            }
                         }
                     }
                     Keys.onUpPressed: {
                         if (root.filteredNotifications.length > 0) {
-                            root.selectedIndex = Math.max(0, root.selectedIndex - 1)
+                            if (root.selectedIndex < 0) {
+                                root.selectedIndex = root.filteredNotifications.length - 1
+                            } else {
+                                root.selectedIndex = Math.max(0, root.selectedIndex - 1)
+                            }
                         }
                     }
                     Keys.onDeletePressed: {
@@ -262,8 +277,11 @@ Popout {
 
         // ===== LIST VIEW CONTAINER =====
         Item {
-            width: parent.width
-            height: parent.height - 80
+            anchors.top: searchBar.bottom
+            anchors.topMargin: 10
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
 
             ListView {
                 id: listView
@@ -302,24 +320,97 @@ Popout {
                 }
 
                 delegate: Rectangle {
-                    id: itemDelegate
+                    id: notifCard
                     required property var modelData
                     required property int index
+
+                    readonly property bool isKeyboardSelected: (root.selectedIndex >= 0) && (index === root.selectedIndex)
+                    readonly property bool isHovered: itemMa.containsMouse
+
                     width: ListView.view.width
                     height: Math.max(54, contentCol.implicitHeight + 16)
-                    radius: 8
-                    color: index === root.selectedIndex ? Qt.alpha(Theme.accent, 0.25) : (itemMa.containsMouse ? Qt.alpha(Theme.accent, 0.18) : Sys.customModuleBg)
+                    radius: 14
+                    color: isKeyboardSelected ? Theme.accent : (isHovered ? Qt.alpha(Theme.accent, 0.18) : Sys.customModuleBg)
                     border.width: 1
-                    border.color: (index === root.selectedIndex || itemMa.containsMouse) ? Theme.accent : Sys.customModuleBorder
+                    border.color: (isKeyboardSelected || isHovered) ? Theme.accent : Sys.customModuleBorder
 
-                    Behavior on color { ColorAnimation { duration: 120 } }
+                    Behavior on color { ColorAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                    Behavior on border.color { ColorAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
                     MouseArea {
                         id: itemMa
                         anchors.fill: parent
                         hoverEnabled: true
-                        onClicked: root.selectedIndex = index
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            root.selectedIndex = index
+                            root.visible = false
+                            Sys.activateNotification(modelData)
+                        }
                     }
+
+                    readonly property bool isNetNotif: {
+                        if (!modelData) return false
+                        const app = String(modelData.appName || "").toLowerCase()
+                        const sum = String(modelData.summary || "").toLowerCase()
+                        return app === "wi-fi" || app === "wifi" || app === "network" || sum.includes("wi-fi") || sum.includes("wifi") || sum.includes("network")
+                    }
+
+                    readonly property bool isBtNotif: {
+                        if (!modelData) return false
+                        const app = String(modelData.appName || "").toLowerCase()
+                        const sum = String(modelData.summary || "").toLowerCase()
+                        return app === "bluetooth" || sum.includes("bluetooth")
+                    }
+
+                    readonly property bool isCaffeineNotif: {
+                        if (!modelData) return false
+                        const app = String(modelData.appName || "").toLowerCase()
+                        const sum = String(modelData.summary || "").toLowerCase()
+                        return app.includes("keep awake") || app.includes("caffeine") || sum.includes("keep awake") || sum.includes("caffeine")
+                    }
+
+                    readonly property bool isEyeNotif: {
+                        if (!modelData) return false
+                        const app = String(modelData.appName || "").toLowerCase()
+                        const sum = String(modelData.summary || "").toLowerCase()
+                        return app.includes("eye protection") || app.includes("night light") || sum.includes("eye protection") || sum.includes("night light")
+                    }
+
+                    readonly property bool isSystemNotif: {
+                        if (!modelData || isCaffeineNotif || isEyeNotif) return false
+                        const app = String(modelData.appName || "").toLowerCase()
+                        return app === "system" || app === "azkia shell" || app === "display" || app === "bspwm" || app === "sxhkd" || app === "notification"
+                    }
+
+                    readonly property bool isNetConnected: {
+                        if (!modelData) return false
+                        const sum = String(modelData.summary || "").toLowerCase()
+                        return sum.includes("connected") && !sum.includes("disconnected") && !sum.includes("failed") && !sum.includes("timeout")
+                    }
+
+                    readonly property bool isBtConnected: {
+                        if (!modelData) return false
+                        const sum = String(modelData.summary || "").toLowerCase()
+                        return sum.includes("connected") && !sum.includes("disconnected") && !sum.includes("failed")
+                    }
+
+                    readonly property bool isCaffeineDisabled: isCaffeineNotif && (String(modelData.summary || "").toLowerCase().includes("disabled") || String(modelData.body || "").toLowerCase().includes("disabled"))
+
+                    readonly property bool isEyeDisabled: isEyeNotif && (String(modelData.summary || "").toLowerCase().includes("disabled") || String(modelData.body || "").toLowerCase().includes("disabled"))
+
+                    readonly property string netIconChar: {
+                        if (isNetConnected) {
+                            return (Sys.netIcon && Sys.netIcon !== "󰤮" && Sys.netIcon !== "󰤭") ? Sys.netIcon : "󰤨"
+                        }
+                        return "󰤭"
+                    }
+
+                    readonly property string btIconChar: isBtConnected ? "󰂯" : "󰂲"
+
+                    readonly property bool hasValidAppIcon: !isNetNotif && !isBtNotif && !isCaffeineNotif && !isEyeNotif && !isSystemNotif && (iconImg.status === Image.Ready)
+
+                    readonly property bool useAccentBadge: isNetNotif || isBtNotif || isCaffeineNotif || isEyeNotif || isSystemNotif || !hasValidAppIcon
 
                     Row {
                         anchors.fill: parent
@@ -335,25 +426,53 @@ Popout {
 
                             Rectangle {
                                 anchors.fill: parent
-                                radius: 18
-                                color: Qt.alpha(Theme.accent, 0.15)
+                                radius: notifCard.useAccentBadge ? 12 : 18
+                                color: isKeyboardSelected 
+                                    ? Sys.customBarBg 
+                                    : (notifCard.useAccentBadge 
+                                        ? (((notifCard.isNetNotif && !notifCard.isNetConnected) || 
+                                            (notifCard.isBtNotif && !notifCard.isBtConnected) ||
+                                            notifCard.isCaffeineDisabled ||
+                                            notifCard.isEyeDisabled) ? Qt.alpha(Theme.accent, 0.45) : Theme.accent)
+                                        : Qt.alpha(Theme.accent, 0.15))
 
-                                IconImage {
+                                // Accent Style Font Icon (Network, Bluetooth, Keep Awake, Eye Protection, or System Bell)
+                                Text {
+                                    anchors.centerIn: parent
+                                    visible: notifCard.useAccentBadge
+                                    text: {
+                                        if (notifCard.isNetNotif) return notifCard.netIconChar
+                                        if (notifCard.isBtNotif) return notifCard.btIconChar
+                                        if (notifCard.isCaffeineNotif) return "󰅶"
+                                        if (notifCard.isEyeNotif) return "󰃠"
+                                        return "󰂚"
+                                    }
+                                    color: isKeyboardSelected 
+                                        ? Theme.accent 
+                                        : Sys.customBarBg
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: 18
+                                    font.bold: true
+                                }
+
+                                Image {
                                     id: iconImg
                                     anchors.centerIn: parent
                                     width: 22
                                     height: 22
-                                    source: modelData.appIcon ? (modelData.appIcon.startsWith("/") || modelData.appIcon.startsWith("file://") ? modelData.appIcon : ("image://icon/" + modelData.appIcon)) : ""
-                                    visible: iconImg.status === Image.Ready
-                                }
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    visible: iconImg.status !== Image.Ready
-                                    text: "󰂚"
-                                    color: Theme.accent
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: 16
+                                    fillMode: Image.PreserveAspectFit
+                                    smooth: true
+                                    mipmap: true
+                                    source: {
+                                        if (notifCard.isNetNotif || notifCard.isBtNotif || notifCard.isCaffeineNotif || notifCard.isEyeNotif || notifCard.isSystemNotif) return ""
+                                        const icon = String(modelData.appIcon || "")
+                                        if (!icon) return ""
+                                        if (icon.startsWith("file://")) return icon
+                                        if (icon.startsWith("/")) return "file://" + icon
+                                        if (icon.startsWith("image://")) return icon
+                                        return "image://icon/" + icon
+                                    }
+                                    visible: notifCard.hasValidAppIcon
                                 }
                             }
                         }
@@ -371,7 +490,7 @@ Popout {
 
                                 Text {
                                     text: modelData.appName || "App"
-                                    color: Theme.accent
+                                    color: isKeyboardSelected ? Sys.customBarBg : Theme.accent
                                     font.family: Theme.fontFamily
                                     font.pixelSize: 10
                                     font.bold: true
@@ -379,14 +498,14 @@ Popout {
 
                                 Text {
                                     text: "•"
-                                    color: Qt.alpha(Theme.fg, 0.3)
+                                    color: isKeyboardSelected ? Qt.alpha(Sys.customBarBg, 0.5) : Qt.alpha(Theme.fg, 0.3)
                                     font.family: Theme.fontFamily
                                     font.pixelSize: 9
                                 }
 
                                 Text {
                                     text: modelData.time || ""
-                                    color: Qt.alpha(Theme.fg, 0.4)
+                                    color: isKeyboardSelected ? Qt.alpha(Sys.customBarBg, 0.75) : Qt.alpha(Theme.fg, 0.4)
                                     font.family: Theme.fontFamily
                                     font.pixelSize: 9
                                 }
@@ -395,7 +514,7 @@ Popout {
                             Text {
                                 width: parent.width
                                 text: modelData.summary || ""
-                                color: Theme.fg
+                                color: isKeyboardSelected ? Sys.customBarBg : Theme.fg
                                 font.family: Theme.fontFamily
                                 font.pixelSize: 11
                                 font.bold: true
@@ -406,7 +525,7 @@ Popout {
                                 width: parent.width
                                 visible: modelData.body !== ""
                                 text: modelData.body || ""
-                                color: Qt.alpha(Theme.fg, 0.7)
+                                color: isKeyboardSelected ? Qt.alpha(Sys.customBarBg, 0.85) : Qt.alpha(Theme.fg, 0.7)
                                 font.family: Theme.fontFamily
                                 font.pixelSize: 10
                                 elide: Text.ElideRight

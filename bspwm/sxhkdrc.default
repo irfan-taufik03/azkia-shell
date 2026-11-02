@@ -1,5 +1,5 @@
 super + shift + r
-	bspc wm -r notify-send 'bspwm' 'Restarted'
+	bspc wm -r; notify-send 'bspwm' 'Restarted'
 
 super + space
 	qs -p ~/.config/bspwm/azkia-shell ipc call launcher toggle
@@ -13,8 +13,30 @@ super + m
 super + l
 	qs -p ~/.config/bspwm/azkia-shell ipc call lockscreen lock
 
+# Azkia Shell Popups & Settings
+super + a
+	qs -p ~/.config/bspwm/azkia-shell ipc call controlcenter toggle
+
+super + b
+	qs -p ~/.config/bspwm/azkia-shell ipc call battery toggle
+
+super + d
+	qs -p ~/.config/bspwm/azkia-shell ipc call calendar toggle
+
+super + k
+	qs -p ~/.config/bspwm/azkia-shell ipc call clipboard toggle
+
+super + n
+	qs -p ~/.config/bspwm/azkia-shell ipc call notifications toggle
+
+super + s
+	qs -p ~/.config/bspwm/azkia-shell ipc call settings toggle
+
+super + t
+	qs -p ~/.config/bspwm/azkia-shell ipc call systemmonitor toggle
+
 super + Escape
-	pkill -USR1 -x sxhkd notify-send 'sxhkd' 'Reloaded config'
+	pkill -USR1 -x sxhkd; notify-send 'sxhkd' 'Reloaded config'
 
 super + i
 	bspc node -R 90
@@ -60,10 +82,10 @@ alt + Tab
 ctrl + Tab
   bspc desktop -f prev.local
 
-super + { Left, Down, Up, Right}
+super + {Left, Down, Up, Right}
 	bspc node -f {west,south,north,east}
 
-super + shift + { Left, Down, Up, Right}
+super + shift + {Left, Down, Up, Right}
 	bspc node -s {west,south,north,east}
 
 super + {_,shift + }{1-9,0}
@@ -101,17 +123,81 @@ XF86MonBrightnessDown
 super + shift + Return
 	thunar
 
-super + s
-	flameshot gui
-	
+super + shift + w
+	flatpak run com.rtosta.zapzap
+
+super + shift + f
+#	firefox
+# firefox-esr
+	floorp
+
+super + shift + z
+	zen
+
+super + shift + g
+	thorium-browser
+
+super + shift + v
+	vivaldi
+
+super + shift + q
+	qgis
+
+super + shift + k
+	kdenlive
+
+super + shift + o
+	obs
+
+super + shift + t
+#    Telegram
+	# ~/.local/share/Telegram/Telegram
+	telegram-desktop
+
+super + shift + i
+	inkscape
+
+super + shift + e
+	geany
+	# emacs
+
+super + alt + b
+#    alacritty -e btop
+	wezterm -e btop
+
+super + alt + Return
+	mate-calc
+
+super + shift + n
+#  alacritty --option window.padding.x=0 --option window.padding.y=0 -e nvim
+	wezterm -e nvim
+
 Print
+	flameshot gui
+
+super + Print
 	flameshot screen
 
 super + shift + s
-	flameshot screen
+	flameshot gui
 
 super + Return
-	~/.config/bspwm/scripts/open-terminal.sh
+	wezterm
+
+super + p
+	bspcolorpicker
+
+super + shift + p
+	~/.config/bspwm/scripts/picom-refresh.sh
+
+super + shift + m
+  /opt/deadbeef/bin/deadbeef %F
+
+super + shift + y
+  freetube
+
+super + shift + a
+  deskgpt
 
 super + h
     ~/.config/bspwm/scripts/toggle-hidden.sh

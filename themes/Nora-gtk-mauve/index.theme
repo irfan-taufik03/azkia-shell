@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=Nora-gtk-mauve
+Comment=Nora Mauve GTK Theme
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+GtkTheme=Nora-gtk-mauve
+MetacityTheme=Nora-gtk-mauve
+IconTheme=Nora-icon-mauve
+ButtonLayout=:minimize,maximize,close
